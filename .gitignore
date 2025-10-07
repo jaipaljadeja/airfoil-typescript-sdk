@@ -1,0 +1,10 @@
+node_modules
+.direnv
+dist
+.turbo
+.vscode
+.env
+.DS_Store
+.airfoil
+.env.local
+.env.*.local

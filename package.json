@@ -1,0 +1,26 @@
+{
+  "name": "airfoil-typescript-sdk",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Airfoil Typescript monorepo",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:ci": "turbo run test:ci",
+    "format": "pnpm run -r format",
+    "lint": "pnpm run -r lint",
+    "lint:fix": "pnpm run -r lint:fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usearifoil/typescript-sdk.git"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.5",
+    "@types/node": "^24.7.0",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.2"
+  },
+  "packageManager": "pnpm@9.15.2"
+}
