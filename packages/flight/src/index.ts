@@ -5,6 +5,8 @@ export * from "./arrow-flight.client";
 export * from "./arrow-flight-sql.client";
 export * from "./common";
 
+export * as proto from "./proto";
+
 export function getFlightClient({
   wingsRpcEndpoint,
 }: {
