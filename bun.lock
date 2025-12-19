@@ -13,9 +13,15 @@
     },
     "packages/cli": {
       "name": "@airfoil/cli",
+      "version": "0.1.0",
+      "bin": {
+        "airfoil": "./dist/index.js",
+      },
       "dependencies": {
+        "@airfoil/flight": "workspace:*",
         "@clack/prompts": "^0.11.0",
         "commander": "^14.0.2",
+        "nice-grpc-common": "^2.0.2",
       },
       "devDependencies": {
         "@types/bun": "^1.3.5",
