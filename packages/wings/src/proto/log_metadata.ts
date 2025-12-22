@@ -7,11 +7,63 @@
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import { type CallContext, type CallOptions } from "nice-grpc-common";
+import { Duration } from "./google/protobuf/duration.js";
 import { Empty } from "./google/protobuf/empty.js";
 import { Timestamp } from "./google/protobuf/timestamp.js";
 import { messageTypeRegistry } from "./typeRegistry.js";
 
 export const protobufPackage = "wings.v1.log_metadata";
+
+export enum TaskStatus {
+  UNSPECIFIED = 0,
+  PENDING = 1,
+  IN_PROGRESS = 2,
+  COMPLETED = 3,
+  FAILED = 4,
+  UNRECOGNIZED = -1,
+}
+
+export function taskStatusFromJSON(object: any): TaskStatus {
+  switch (object) {
+    case 0:
+    case "TASK_STATUS_UNSPECIFIED":
+      return TaskStatus.UNSPECIFIED;
+    case 1:
+    case "TASK_STATUS_PENDING":
+      return TaskStatus.PENDING;
+    case 2:
+    case "TASK_STATUS_IN_PROGRESS":
+      return TaskStatus.IN_PROGRESS;
+    case 3:
+    case "TASK_STATUS_COMPLETED":
+      return TaskStatus.COMPLETED;
+    case 4:
+    case "TASK_STATUS_FAILED":
+      return TaskStatus.FAILED;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return TaskStatus.UNRECOGNIZED;
+  }
+}
+
+export function taskStatusToJSON(object: TaskStatus): string {
+  switch (object) {
+    case TaskStatus.UNSPECIFIED:
+      return "TASK_STATUS_UNSPECIFIED";
+    case TaskStatus.PENDING:
+      return "TASK_STATUS_PENDING";
+    case TaskStatus.IN_PROGRESS:
+      return "TASK_STATUS_IN_PROGRESS";
+    case TaskStatus.COMPLETED:
+      return "TASK_STATUS_COMPLETED";
+    case TaskStatus.FAILED:
+      return "TASK_STATUS_FAILED";
+    case TaskStatus.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
 
 export interface CommitFolioRequest {
   $type: "wings.v1.log_metadata.CommitFolioRequest";
@@ -56,12 +108,34 @@ export interface GetLogLocationRequest {
   $type: "wings.v1.log_metadata.GetLogLocationRequest";
   readonly topic: string;
   readonly partition?: PartitionValue | undefined;
-  readonly deadline: Date | undefined;
-  readonly location?: { readonly $case: "offset"; readonly offset: bigint } | undefined;
+  readonly options: GetLogLocationOptions | undefined;
+  readonly offset: bigint;
+}
+
+export interface GetLogLocationOptions {
+  $type: "wings.v1.log_metadata.GetLogLocationOptions";
+  readonly deadline: Duration | undefined;
+  readonly minRows: number;
+  readonly maxRows: number;
+}
+
+export interface TimestampRange {
+  $type: "wings.v1.log_metadata.TimestampRange";
+  /** / The start timestamp (inclusive) for the range query. */
+  readonly startTimestamp:
+    | Date
+    | undefined;
+  /** / The end timestamp (inclusive) for the range query. */
+  readonly endTimestamp: Date | undefined;
 }
 
 export interface GetLogLocationResponse {
   $type: "wings.v1.log_metadata.GetLogLocationResponse";
+  readonly locations: readonly LogLocation[];
+}
+
+export interface LogLocation {
+  $type: "wings.v1.log_metadata.LogLocation";
   readonly location?: { readonly $case: "folioLocation"; readonly folioLocation: FolioLocation } | undefined;
 }
 
@@ -138,6 +212,44 @@ export interface PartitionValue {
     | { readonly $case: "bytesValue"; readonly bytesValue: Uint8Array }
     | { readonly $case: "boolValue"; readonly boolValue: boolean }
     | undefined;
+}
+
+export interface CompactionTask {
+  $type: "wings.v1.log_metadata.CompactionTask";
+  readonly topic: string;
+  readonly partition?: PartitionValue | undefined;
+  readonly startOffset: bigint;
+  readonly endOffset: bigint;
+}
+
+export interface Task {
+  $type: "wings.v1.log_metadata.Task";
+  readonly taskId: string;
+  readonly status: TaskStatus;
+  readonly createdAt: Date | undefined;
+  readonly updatedAt: Date | undefined;
+  readonly task?: { readonly $case: "compactionTask"; readonly compactionTask: CompactionTask } | undefined;
+}
+
+export interface RequestTaskRequest {
+  $type: "wings.v1.log_metadata.RequestTaskRequest";
+}
+
+export interface RequestTaskResponse {
+  $type: "wings.v1.log_metadata.RequestTaskResponse";
+  readonly task?: Task | undefined;
+}
+
+export interface CompleteTaskRequest {
+  $type: "wings.v1.log_metadata.CompleteTaskRequest";
+  readonly taskId: string;
+  readonly status: TaskStatus;
+  readonly errorMessage?: string | undefined;
+}
+
+export interface CompleteTaskResponse {
+  $type: "wings.v1.log_metadata.CompleteTaskResponse";
+  readonly success: boolean;
 }
 
 function createBaseCommitFolioRequest(): CommitFolioRequest {
@@ -654,8 +766,8 @@ function createBaseGetLogLocationRequest(): GetLogLocationRequest {
     $type: "wings.v1.log_metadata.GetLogLocationRequest",
     topic: "",
     partition: undefined,
-    deadline: undefined,
-    location: undefined,
+    options: undefined,
+    offset: 0n,
   };
 }
 
@@ -669,16 +781,14 @@ export const GetLogLocationRequest: MessageFns<GetLogLocationRequest, "wings.v1.
     if (message.partition !== undefined) {
       PartitionValue.encode(message.partition, writer.uint32(18).fork()).join();
     }
-    if (message.deadline !== undefined) {
-      Timestamp.encode(toTimestamp(message.deadline), writer.uint32(26).fork()).join();
+    if (message.options !== undefined) {
+      GetLogLocationOptions.encode(message.options, writer.uint32(26).fork()).join();
     }
-    switch (message.location?.$case) {
-      case "offset":
-        if (BigInt.asUintN(64, message.location.offset) !== message.location.offset) {
-          throw new globalThis.Error("value provided for field message.location.offset of type uint64 too large");
-        }
-        writer.uint32(32).uint64(message.location.offset);
-        break;
+    if (message.offset !== 0n) {
+      if (BigInt.asUintN(64, message.offset) !== message.offset) {
+        throw new globalThis.Error("value provided for field message.offset of type uint64 too large");
+      }
+      writer.uint32(32).uint64(message.offset);
     }
     return writer;
   },
@@ -711,7 +821,7 @@ export const GetLogLocationRequest: MessageFns<GetLogLocationRequest, "wings.v1.
             break;
           }
 
-          message.deadline = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.options = GetLogLocationOptions.decode(reader, reader.uint32());
           continue;
         }
         case 4: {
@@ -719,7 +829,7 @@ export const GetLogLocationRequest: MessageFns<GetLogLocationRequest, "wings.v1.
             break;
           }
 
-          message.location = { $case: "offset", offset: reader.uint64() as bigint };
+          message.offset = reader.uint64() as bigint;
           continue;
         }
       }
@@ -736,8 +846,8 @@ export const GetLogLocationRequest: MessageFns<GetLogLocationRequest, "wings.v1.
       $type: GetLogLocationRequest.$type,
       topic: isSet(object.topic) ? globalThis.String(object.topic) : "",
       partition: isSet(object.partition) ? PartitionValue.fromJSON(object.partition) : undefined,
-      deadline: isSet(object.deadline) ? fromJsonTimestamp(object.deadline) : undefined,
-      location: isSet(object.offset) ? { $case: "offset", offset: BigInt(object.offset) } : undefined,
+      options: isSet(object.options) ? GetLogLocationOptions.fromJSON(object.options) : undefined,
+      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
     };
   },
 
@@ -749,11 +859,11 @@ export const GetLogLocationRequest: MessageFns<GetLogLocationRequest, "wings.v1.
     if (message.partition !== undefined) {
       obj.partition = PartitionValue.toJSON(message.partition);
     }
-    if (message.deadline !== undefined) {
-      obj.deadline = message.deadline.toISOString();
+    if (message.options !== undefined) {
+      obj.options = GetLogLocationOptions.toJSON(message.options);
     }
-    if (message.location?.$case === "offset") {
-      obj.offset = message.location.offset.toString();
+    if (message.offset !== 0n) {
+      obj.offset = message.offset.toString();
     }
     return obj;
   },
@@ -767,23 +877,198 @@ export const GetLogLocationRequest: MessageFns<GetLogLocationRequest, "wings.v1.
     message.partition = (object.partition !== undefined && object.partition !== null)
       ? PartitionValue.fromPartial(object.partition)
       : undefined;
-    message.deadline = object.deadline ?? undefined;
-    switch (object.location?.$case) {
-      case "offset": {
-        if (object.location?.offset !== undefined && object.location?.offset !== null) {
-          message.location = { $case: "offset", offset: object.location.offset };
-        }
-        break;
-      }
-    }
+    message.options = (object.options !== undefined && object.options !== null)
+      ? GetLogLocationOptions.fromPartial(object.options)
+      : undefined;
+    message.offset = object.offset ?? 0n;
     return message;
   },
 };
 
 messageTypeRegistry.set(GetLogLocationRequest.$type, GetLogLocationRequest);
 
+function createBaseGetLogLocationOptions(): GetLogLocationOptions {
+  return { $type: "wings.v1.log_metadata.GetLogLocationOptions", deadline: undefined, minRows: 0, maxRows: 0 };
+}
+
+export const GetLogLocationOptions: MessageFns<GetLogLocationOptions, "wings.v1.log_metadata.GetLogLocationOptions"> = {
+  $type: "wings.v1.log_metadata.GetLogLocationOptions" as const,
+
+  encode(message: GetLogLocationOptions, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.deadline !== undefined) {
+      Duration.encode(message.deadline, writer.uint32(10).fork()).join();
+    }
+    if (message.minRows !== 0) {
+      writer.uint32(16).uint32(message.minRows);
+    }
+    if (message.maxRows !== 0) {
+      writer.uint32(24).uint32(message.maxRows);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetLogLocationOptions {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetLogLocationOptions() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.deadline = Duration.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.minRows = reader.uint32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.maxRows = reader.uint32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetLogLocationOptions {
+    return {
+      $type: GetLogLocationOptions.$type,
+      deadline: isSet(object.deadline) ? Duration.fromJSON(object.deadline) : undefined,
+      minRows: isSet(object.minRows) ? globalThis.Number(object.minRows) : 0,
+      maxRows: isSet(object.maxRows) ? globalThis.Number(object.maxRows) : 0,
+    };
+  },
+
+  toJSON(message: GetLogLocationOptions): unknown {
+    const obj: any = {};
+    if (message.deadline !== undefined) {
+      obj.deadline = Duration.toJSON(message.deadline);
+    }
+    if (message.minRows !== 0) {
+      obj.minRows = Math.round(message.minRows);
+    }
+    if (message.maxRows !== 0) {
+      obj.maxRows = Math.round(message.maxRows);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetLogLocationOptions>, I>>(base?: I): GetLogLocationOptions {
+    return GetLogLocationOptions.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetLogLocationOptions>, I>>(object: I): GetLogLocationOptions {
+    const message = createBaseGetLogLocationOptions() as any;
+    message.deadline = (object.deadline !== undefined && object.deadline !== null)
+      ? Duration.fromPartial(object.deadline)
+      : undefined;
+    message.minRows = object.minRows ?? 0;
+    message.maxRows = object.maxRows ?? 0;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(GetLogLocationOptions.$type, GetLogLocationOptions);
+
+function createBaseTimestampRange(): TimestampRange {
+  return { $type: "wings.v1.log_metadata.TimestampRange", startTimestamp: undefined, endTimestamp: undefined };
+}
+
+export const TimestampRange: MessageFns<TimestampRange, "wings.v1.log_metadata.TimestampRange"> = {
+  $type: "wings.v1.log_metadata.TimestampRange" as const,
+
+  encode(message: TimestampRange, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.startTimestamp !== undefined) {
+      Timestamp.encode(toTimestamp(message.startTimestamp), writer.uint32(10).fork()).join();
+    }
+    if (message.endTimestamp !== undefined) {
+      Timestamp.encode(toTimestamp(message.endTimestamp), writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): TimestampRange {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseTimestampRange() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.startTimestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.endTimestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): TimestampRange {
+    return {
+      $type: TimestampRange.$type,
+      startTimestamp: isSet(object.startTimestamp) ? fromJsonTimestamp(object.startTimestamp) : undefined,
+      endTimestamp: isSet(object.endTimestamp) ? fromJsonTimestamp(object.endTimestamp) : undefined,
+    };
+  },
+
+  toJSON(message: TimestampRange): unknown {
+    const obj: any = {};
+    if (message.startTimestamp !== undefined) {
+      obj.startTimestamp = message.startTimestamp.toISOString();
+    }
+    if (message.endTimestamp !== undefined) {
+      obj.endTimestamp = message.endTimestamp.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<TimestampRange>, I>>(base?: I): TimestampRange {
+    return TimestampRange.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<TimestampRange>, I>>(object: I): TimestampRange {
+    const message = createBaseTimestampRange() as any;
+    message.startTimestamp = object.startTimestamp ?? undefined;
+    message.endTimestamp = object.endTimestamp ?? undefined;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(TimestampRange.$type, TimestampRange);
+
 function createBaseGetLogLocationResponse(): GetLogLocationResponse {
-  return { $type: "wings.v1.log_metadata.GetLogLocationResponse", location: undefined };
+  return { $type: "wings.v1.log_metadata.GetLogLocationResponse", locations: [] };
 }
 
 export const GetLogLocationResponse: MessageFns<
@@ -793,10 +1078,8 @@ export const GetLogLocationResponse: MessageFns<
   $type: "wings.v1.log_metadata.GetLogLocationResponse" as const,
 
   encode(message: GetLogLocationResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    switch (message.location?.$case) {
-      case "folioLocation":
-        FolioLocation.encode(message.location.folioLocation, writer.uint32(10).fork()).join();
-        break;
+    for (const v of message.locations) {
+      LogLocation.encode(v!, writer.uint32(10).fork()).join();
     }
     return writer;
   },
@@ -805,6 +1088,75 @@ export const GetLogLocationResponse: MessageFns<
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseGetLogLocationResponse() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.locations.push(LogLocation.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetLogLocationResponse {
+    return {
+      $type: GetLogLocationResponse.$type,
+      locations: globalThis.Array.isArray(object?.locations)
+        ? object.locations.map((e: any) => LogLocation.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: GetLogLocationResponse): unknown {
+    const obj: any = {};
+    if (message.locations?.length) {
+      obj.locations = message.locations.map((e) => LogLocation.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetLogLocationResponse>, I>>(base?: I): GetLogLocationResponse {
+    return GetLogLocationResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetLogLocationResponse>, I>>(object: I): GetLogLocationResponse {
+    const message = createBaseGetLogLocationResponse() as any;
+    message.locations = object.locations?.map((e) => LogLocation.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+messageTypeRegistry.set(GetLogLocationResponse.$type, GetLogLocationResponse);
+
+function createBaseLogLocation(): LogLocation {
+  return { $type: "wings.v1.log_metadata.LogLocation", location: undefined };
+}
+
+export const LogLocation: MessageFns<LogLocation, "wings.v1.log_metadata.LogLocation"> = {
+  $type: "wings.v1.log_metadata.LogLocation" as const,
+
+  encode(message: LogLocation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    switch (message.location?.$case) {
+      case "folioLocation":
+        FolioLocation.encode(message.location.folioLocation, writer.uint32(10).fork()).join();
+        break;
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LogLocation {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseLogLocation() as any;
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -825,16 +1177,16 @@ export const GetLogLocationResponse: MessageFns<
     return message;
   },
 
-  fromJSON(object: any): GetLogLocationResponse {
+  fromJSON(object: any): LogLocation {
     return {
-      $type: GetLogLocationResponse.$type,
+      $type: LogLocation.$type,
       location: isSet(object.folioLocation)
         ? { $case: "folioLocation", folioLocation: FolioLocation.fromJSON(object.folioLocation) }
         : undefined,
     };
   },
 
-  toJSON(message: GetLogLocationResponse): unknown {
+  toJSON(message: LogLocation): unknown {
     const obj: any = {};
     if (message.location?.$case === "folioLocation") {
       obj.folioLocation = FolioLocation.toJSON(message.location.folioLocation);
@@ -842,11 +1194,11 @@ export const GetLogLocationResponse: MessageFns<
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<GetLogLocationResponse>, I>>(base?: I): GetLogLocationResponse {
-    return GetLogLocationResponse.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<LogLocation>, I>>(base?: I): LogLocation {
+    return LogLocation.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<GetLogLocationResponse>, I>>(object: I): GetLogLocationResponse {
-    const message = createBaseGetLogLocationResponse() as any;
+  fromPartial<I extends Exact<DeepPartial<LogLocation>, I>>(object: I): LogLocation {
+    const message = createBaseLogLocation() as any;
     switch (object.location?.$case) {
       case "folioLocation": {
         if (object.location?.folioLocation !== undefined && object.location?.folioLocation !== null) {
@@ -862,7 +1214,7 @@ export const GetLogLocationResponse: MessageFns<
   },
 };
 
-messageTypeRegistry.set(GetLogLocationResponse.$type, GetLogLocationResponse);
+messageTypeRegistry.set(LogLocation.$type, LogLocation);
 
 function createBaseFolioLocation(): FolioLocation {
   return { $type: "wings.v1.log_metadata.FolioLocation", fileRef: "", offsetBytes: 0n, sizeBytes: 0n, batches: [] };
@@ -1926,6 +2278,554 @@ export const PartitionValue: MessageFns<PartitionValue, "wings.v1.log_metadata.P
 
 messageTypeRegistry.set(PartitionValue.$type, PartitionValue);
 
+function createBaseCompactionTask(): CompactionTask {
+  return {
+    $type: "wings.v1.log_metadata.CompactionTask",
+    topic: "",
+    partition: undefined,
+    startOffset: 0n,
+    endOffset: 0n,
+  };
+}
+
+export const CompactionTask: MessageFns<CompactionTask, "wings.v1.log_metadata.CompactionTask"> = {
+  $type: "wings.v1.log_metadata.CompactionTask" as const,
+
+  encode(message: CompactionTask, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.topic !== "") {
+      writer.uint32(10).string(message.topic);
+    }
+    if (message.partition !== undefined) {
+      PartitionValue.encode(message.partition, writer.uint32(18).fork()).join();
+    }
+    if (message.startOffset !== 0n) {
+      if (BigInt.asUintN(64, message.startOffset) !== message.startOffset) {
+        throw new globalThis.Error("value provided for field message.startOffset of type uint64 too large");
+      }
+      writer.uint32(24).uint64(message.startOffset);
+    }
+    if (message.endOffset !== 0n) {
+      if (BigInt.asUintN(64, message.endOffset) !== message.endOffset) {
+        throw new globalThis.Error("value provided for field message.endOffset of type uint64 too large");
+      }
+      writer.uint32(32).uint64(message.endOffset);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompactionTask {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompactionTask() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.topic = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.partition = PartitionValue.decode(reader, reader.uint32());
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.startOffset = reader.uint64() as bigint;
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.endOffset = reader.uint64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CompactionTask {
+    return {
+      $type: CompactionTask.$type,
+      topic: isSet(object.topic) ? globalThis.String(object.topic) : "",
+      partition: isSet(object.partition) ? PartitionValue.fromJSON(object.partition) : undefined,
+      startOffset: isSet(object.startOffset) ? BigInt(object.startOffset) : 0n,
+      endOffset: isSet(object.endOffset) ? BigInt(object.endOffset) : 0n,
+    };
+  },
+
+  toJSON(message: CompactionTask): unknown {
+    const obj: any = {};
+    if (message.topic !== "") {
+      obj.topic = message.topic;
+    }
+    if (message.partition !== undefined) {
+      obj.partition = PartitionValue.toJSON(message.partition);
+    }
+    if (message.startOffset !== 0n) {
+      obj.startOffset = message.startOffset.toString();
+    }
+    if (message.endOffset !== 0n) {
+      obj.endOffset = message.endOffset.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CompactionTask>, I>>(base?: I): CompactionTask {
+    return CompactionTask.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompactionTask>, I>>(object: I): CompactionTask {
+    const message = createBaseCompactionTask() as any;
+    message.topic = object.topic ?? "";
+    message.partition = (object.partition !== undefined && object.partition !== null)
+      ? PartitionValue.fromPartial(object.partition)
+      : undefined;
+    message.startOffset = object.startOffset ?? 0n;
+    message.endOffset = object.endOffset ?? 0n;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(CompactionTask.$type, CompactionTask);
+
+function createBaseTask(): Task {
+  return {
+    $type: "wings.v1.log_metadata.Task",
+    taskId: "",
+    status: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    task: undefined,
+  };
+}
+
+export const Task: MessageFns<Task, "wings.v1.log_metadata.Task"> = {
+  $type: "wings.v1.log_metadata.Task" as const,
+
+  encode(message: Task, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.taskId !== "") {
+      writer.uint32(10).string(message.taskId);
+    }
+    if (message.status !== 0) {
+      writer.uint32(16).int32(message.status);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(26).fork()).join();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(34).fork()).join();
+    }
+    switch (message.task?.$case) {
+      case "compactionTask":
+        CompactionTask.encode(message.task.compactionTask, writer.uint32(42).fork()).join();
+        break;
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Task {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseTask() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.taskId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.status = reader.int32() as any;
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.task = { $case: "compactionTask", compactionTask: CompactionTask.decode(reader, reader.uint32()) };
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): Task {
+    return {
+      $type: Task.$type,
+      taskId: isSet(object.taskId) ? globalThis.String(object.taskId) : "",
+      status: isSet(object.status) ? taskStatusFromJSON(object.status) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      task: isSet(object.compactionTask)
+        ? { $case: "compactionTask", compactionTask: CompactionTask.fromJSON(object.compactionTask) }
+        : undefined,
+    };
+  },
+
+  toJSON(message: Task): unknown {
+    const obj: any = {};
+    if (message.taskId !== "") {
+      obj.taskId = message.taskId;
+    }
+    if (message.status !== 0) {
+      obj.status = taskStatusToJSON(message.status);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.task?.$case === "compactionTask") {
+      obj.compactionTask = CompactionTask.toJSON(message.task.compactionTask);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<Task>, I>>(base?: I): Task {
+    return Task.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Task>, I>>(object: I): Task {
+    const message = createBaseTask() as any;
+    message.taskId = object.taskId ?? "";
+    message.status = object.status ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    switch (object.task?.$case) {
+      case "compactionTask": {
+        if (object.task?.compactionTask !== undefined && object.task?.compactionTask !== null) {
+          message.task = {
+            $case: "compactionTask",
+            compactionTask: CompactionTask.fromPartial(object.task.compactionTask),
+          };
+        }
+        break;
+      }
+    }
+    return message;
+  },
+};
+
+messageTypeRegistry.set(Task.$type, Task);
+
+function createBaseRequestTaskRequest(): RequestTaskRequest {
+  return { $type: "wings.v1.log_metadata.RequestTaskRequest" };
+}
+
+export const RequestTaskRequest: MessageFns<RequestTaskRequest, "wings.v1.log_metadata.RequestTaskRequest"> = {
+  $type: "wings.v1.log_metadata.RequestTaskRequest" as const,
+
+  encode(_: RequestTaskRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RequestTaskRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRequestTaskRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): RequestTaskRequest {
+    return { $type: RequestTaskRequest.$type };
+  },
+
+  toJSON(_: RequestTaskRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RequestTaskRequest>, I>>(base?: I): RequestTaskRequest {
+    return RequestTaskRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RequestTaskRequest>, I>>(_: I): RequestTaskRequest {
+    const message = createBaseRequestTaskRequest() as any;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(RequestTaskRequest.$type, RequestTaskRequest);
+
+function createBaseRequestTaskResponse(): RequestTaskResponse {
+  return { $type: "wings.v1.log_metadata.RequestTaskResponse", task: undefined };
+}
+
+export const RequestTaskResponse: MessageFns<RequestTaskResponse, "wings.v1.log_metadata.RequestTaskResponse"> = {
+  $type: "wings.v1.log_metadata.RequestTaskResponse" as const,
+
+  encode(message: RequestTaskResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.task !== undefined) {
+      Task.encode(message.task, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RequestTaskResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRequestTaskResponse() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.task = Task.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RequestTaskResponse {
+    return { $type: RequestTaskResponse.$type, task: isSet(object.task) ? Task.fromJSON(object.task) : undefined };
+  },
+
+  toJSON(message: RequestTaskResponse): unknown {
+    const obj: any = {};
+    if (message.task !== undefined) {
+      obj.task = Task.toJSON(message.task);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RequestTaskResponse>, I>>(base?: I): RequestTaskResponse {
+    return RequestTaskResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RequestTaskResponse>, I>>(object: I): RequestTaskResponse {
+    const message = createBaseRequestTaskResponse() as any;
+    message.task = (object.task !== undefined && object.task !== null) ? Task.fromPartial(object.task) : undefined;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(RequestTaskResponse.$type, RequestTaskResponse);
+
+function createBaseCompleteTaskRequest(): CompleteTaskRequest {
+  return { $type: "wings.v1.log_metadata.CompleteTaskRequest", taskId: "", status: 0, errorMessage: undefined };
+}
+
+export const CompleteTaskRequest: MessageFns<CompleteTaskRequest, "wings.v1.log_metadata.CompleteTaskRequest"> = {
+  $type: "wings.v1.log_metadata.CompleteTaskRequest" as const,
+
+  encode(message: CompleteTaskRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.taskId !== "") {
+      writer.uint32(10).string(message.taskId);
+    }
+    if (message.status !== 0) {
+      writer.uint32(16).int32(message.status);
+    }
+    if (message.errorMessage !== undefined) {
+      writer.uint32(26).string(message.errorMessage);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompleteTaskRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompleteTaskRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.taskId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.status = reader.int32() as any;
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.errorMessage = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CompleteTaskRequest {
+    return {
+      $type: CompleteTaskRequest.$type,
+      taskId: isSet(object.taskId) ? globalThis.String(object.taskId) : "",
+      status: isSet(object.status) ? taskStatusFromJSON(object.status) : 0,
+      errorMessage: isSet(object.errorMessage) ? globalThis.String(object.errorMessage) : undefined,
+    };
+  },
+
+  toJSON(message: CompleteTaskRequest): unknown {
+    const obj: any = {};
+    if (message.taskId !== "") {
+      obj.taskId = message.taskId;
+    }
+    if (message.status !== 0) {
+      obj.status = taskStatusToJSON(message.status);
+    }
+    if (message.errorMessage !== undefined) {
+      obj.errorMessage = message.errorMessage;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CompleteTaskRequest>, I>>(base?: I): CompleteTaskRequest {
+    return CompleteTaskRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompleteTaskRequest>, I>>(object: I): CompleteTaskRequest {
+    const message = createBaseCompleteTaskRequest() as any;
+    message.taskId = object.taskId ?? "";
+    message.status = object.status ?? 0;
+    message.errorMessage = object.errorMessage ?? undefined;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(CompleteTaskRequest.$type, CompleteTaskRequest);
+
+function createBaseCompleteTaskResponse(): CompleteTaskResponse {
+  return { $type: "wings.v1.log_metadata.CompleteTaskResponse", success: false };
+}
+
+export const CompleteTaskResponse: MessageFns<CompleteTaskResponse, "wings.v1.log_metadata.CompleteTaskResponse"> = {
+  $type: "wings.v1.log_metadata.CompleteTaskResponse" as const,
+
+  encode(message: CompleteTaskResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.success !== false) {
+      writer.uint32(8).bool(message.success);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompleteTaskResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompleteTaskResponse() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.success = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CompleteTaskResponse {
+    return {
+      $type: CompleteTaskResponse.$type,
+      success: isSet(object.success) ? globalThis.Boolean(object.success) : false,
+    };
+  },
+
+  toJSON(message: CompleteTaskResponse): unknown {
+    const obj: any = {};
+    if (message.success !== false) {
+      obj.success = message.success;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CompleteTaskResponse>, I>>(base?: I): CompleteTaskResponse {
+    return CompleteTaskResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompleteTaskResponse>, I>>(object: I): CompleteTaskResponse {
+    const message = createBaseCompleteTaskResponse() as any;
+    message.success = object.success ?? false;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(CompleteTaskResponse.$type, CompleteTaskResponse);
+
 export type LogMetadataServiceDefinition = typeof LogMetadataServiceDefinition;
 export const LogMetadataServiceDefinition = {
   name: "LogMetadataService",
@@ -1955,6 +2855,22 @@ export const LogMetadataServiceDefinition = {
       responseStream: false,
       options: {},
     },
+    requestTask: {
+      name: "RequestTask",
+      requestType: RequestTaskRequest,
+      requestStream: false,
+      responseType: RequestTaskResponse,
+      responseStream: false,
+      options: {},
+    },
+    completeTask: {
+      name: "CompleteTask",
+      requestType: CompleteTaskRequest,
+      requestStream: false,
+      responseType: CompleteTaskResponse,
+      responseStream: false,
+      options: {},
+    },
   },
 } as const;
 
@@ -1971,6 +2887,14 @@ export interface LogMetadataServiceImplementation<CallContextExt = {}> {
     request: ListPartitionsRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<ListPartitionsResponse>>;
+  requestTask(
+    request: RequestTaskRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<RequestTaskResponse>>;
+  completeTask(
+    request: CompleteTaskRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<CompleteTaskResponse>>;
 }
 
 export interface LogMetadataServiceClient<CallOptionsExt = {}> {
@@ -1986,6 +2910,14 @@ export interface LogMetadataServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<ListPartitionsRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<ListPartitionsResponse>;
+  requestTask(
+    request: DeepPartial<RequestTaskRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<RequestTaskResponse>;
+  completeTask(
+    request: DeepPartial<CompleteTaskRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<CompleteTaskResponse>;
 }
 
 function bytesFromBase64(b64: string): Uint8Array {

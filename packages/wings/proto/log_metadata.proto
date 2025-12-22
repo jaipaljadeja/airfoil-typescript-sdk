@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package wings.v1.log_metadata;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -11,6 +12,10 @@ service LogMetadataService {
   rpc GetLogLocation(GetLogLocationRequest) returns (GetLogLocationResponse);
 
   rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
+
+  rpc RequestTask(RequestTaskRequest) returns (RequestTaskResponse);
+
+  rpc CompleteTask(CompleteTaskRequest) returns (CompleteTaskResponse);
 }
 
 message CommitFolioRequest {
@@ -48,13 +53,28 @@ message CommitPageResponse {
 message GetLogLocationRequest {
   string topic = 1;
   optional PartitionValue partition = 2;
-  google.protobuf.Timestamp deadline = 3;
-  oneof location {
-      uint64 offset = 4;
-  }
+  GetLogLocationOptions options = 3;
+  uint64 offset = 4;
+}
+
+message GetLogLocationOptions {
+  google.protobuf.Duration deadline = 1;
+  uint32 min_rows = 2;
+  uint32 max_rows = 3;
+}
+
+message TimestampRange {
+  /// The start timestamp (inclusive) for the range query.
+  google.protobuf.Timestamp start_timestamp = 1;
+  /// The end timestamp (inclusive) for the range query.
+  google.protobuf.Timestamp end_timestamp = 2;
 }
 
 message GetLogLocationResponse {
+  repeated LogLocation locations = 1;
+}
+
+message LogLocation {
   oneof location {
     FolioLocation folio_location = 1;
   }
@@ -129,5 +149,44 @@ message PartitionValue {
   }
 }
 
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_PENDING = 1;
+  TASK_STATUS_IN_PROGRESS = 2;
+  TASK_STATUS_COMPLETED = 3;
+  TASK_STATUS_FAILED = 4;
+}
 
+message CompactionTask {
+  string topic = 1;
+  optional PartitionValue partition = 2;
+  uint64 start_offset = 3;
+  uint64 end_offset = 4;
+}
 
+message Task {
+  string task_id = 1;
+  TaskStatus status = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+
+  oneof task {
+    CompactionTask compaction_task = 5;
+  }
+}
+
+message RequestTaskRequest {}
+
+message RequestTaskResponse {
+  optional Task task = 1;
+}
+
+message CompleteTaskRequest {
+  string task_id = 1;
+  TaskStatus status = 2;
+  optional string error_message = 3;
+}
+
+message CompleteTaskResponse {
+  bool success = 1;
+}

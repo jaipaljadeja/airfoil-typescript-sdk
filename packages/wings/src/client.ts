@@ -23,10 +23,13 @@ export class WingsClient {
   }
 
   clusterMetadataClient(
-    _options: ClientOptions<ClusterMetadataServiceDefinition> = {},
+    options: ClientOptions<ClusterMetadataServiceDefinition> = {},
   ): ClusterMetadataServiceClient {
-    // TODO: merge options with default call options
-    return createClient(ClusterMetadataServiceDefinition, this.channel, {});
+    return createClient(
+      ClusterMetadataServiceDefinition,
+      this.channel,
+      options.defaultCallOptions,
+    );
   }
 
   flightClient() {

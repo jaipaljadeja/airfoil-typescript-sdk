@@ -148,10 +148,10 @@ export interface Namespace {
   readonly flushSizeBytes: bigint;
   /** The maximum interval at which the current segment is flushed to object storage (in milliseconds). */
   readonly flushIntervalMillis: bigint;
-  /** The default object store configuration for the namespace. */
-  readonly defaultObjectStoreConfig: string;
-  /** If specified, use this configuration for frozen data. */
-  readonly frozenObjectStoreConfig?: string | undefined;
+  /** The object store used by this namespace. */
+  readonly objectStore: string;
+  /** The data lake used by this namespace. */
+  readonly dataLake: string;
 }
 
 export interface CreateTopicRequest {
@@ -229,8 +229,254 @@ export interface Topic {
   readonly name: string;
   /** The fields in the topic messages. */
   readonly fields: Uint8Array;
+  /** The topic description. */
+  readonly description?:
+    | string
+    | undefined;
   /** The index of the field that is used to partition the topic. */
-  readonly partitionKey?: number | undefined;
+  readonly partitionKey?:
+    | number
+    | undefined;
+  /** The topic compaction configuration. */
+  readonly compaction: CompactionConfiguration | undefined;
+}
+
+export interface CompactionConfiguration {
+  $type: "wings.v1.cluster_metadata.CompactionConfiguration";
+  /** How often to compact the topic, in seconds. */
+  readonly freshnessSeconds: bigint;
+  /** How long to keep the topic data, in seconds. */
+  readonly ttlSeconds?: bigint | undefined;
+}
+
+export interface CreateObjectStoreRequest {
+  $type: "wings.v1.cluster_metadata.CreateObjectStoreRequest";
+  /**
+   * The tenant that owns the object store.
+   *
+   * Format: tenants/{tenant}
+   */
+  readonly parent: string;
+  /** The object store id. */
+  readonly objectStoreId: string;
+  /** The object store metadata. */
+  readonly objectStore: ObjectStore | undefined;
+}
+
+export interface GetObjectStoreRequest {
+  $type: "wings.v1.cluster_metadata.GetObjectStoreRequest";
+  /**
+   * The object store name.
+   *
+   * Format: tenants/{tenant}/object-stores/{object-store}
+   */
+  readonly name: string;
+}
+
+export interface ListObjectStoresRequest {
+  $type: "wings.v1.cluster_metadata.ListObjectStoresRequest";
+  /**
+   * The parent tenant.
+   *
+   * Format: tenants/{tenant}
+   */
+  readonly parent: string;
+  /**
+   * The number of object stores to return.
+   *
+   * Default: 100
+   * Maximum: 1000.
+   */
+  readonly pageSize?:
+    | number
+    | undefined;
+  /** The continuation token. */
+  readonly pageToken?: string | undefined;
+}
+
+export interface ListObjectStoresResponse {
+  $type: "wings.v1.cluster_metadata.ListObjectStoresResponse";
+  /** The object stores. */
+  readonly objectStores: readonly ObjectStore[];
+  /** The continuation token. */
+  readonly nextPageToken: string;
+}
+
+export interface DeleteObjectStoreRequest {
+  $type: "wings.v1.cluster_metadata.DeleteObjectStoreRequest";
+  /**
+   * The object store name.
+   *
+   * Format: tenants/{tenant}/object-stores/{object-store}
+   */
+  readonly name: string;
+}
+
+export interface ObjectStore {
+  $type: "wings.v1.cluster_metadata.ObjectStore";
+  /**
+   * The object store name.
+   *
+   * Format: tenants/{tenant}/object-stores/{object-store}
+   */
+  readonly name: string;
+  /** Object store configuration. */
+  readonly objectStoreConfig?:
+    | { readonly $case: "aws"; readonly aws: AwsConfiguration }
+    | { readonly $case: "azure"; readonly azure: AzureConfiguration }
+    | { readonly $case: "google"; readonly google: GoogleConfiguration }
+    | { readonly $case: "s3Compatible"; readonly s3Compatible: S3CompatibleConfiguration }
+    | undefined;
+}
+
+export interface AwsConfiguration {
+  $type: "wings.v1.cluster_metadata.AwsConfiguration";
+  /** Bucket name. */
+  readonly bucketName: string;
+  /** Bucket prefix. */
+  readonly prefix?:
+    | string
+    | undefined;
+  /** / `AWS_ACCESS_KEY_ID` */
+  readonly accessKeyId: string;
+  /** / `AWS_SECRET_ACCESS_KEY` */
+  readonly secretAccessKey: string;
+  /** / `AWS_DEFAULT_REGION` */
+  readonly region?: string | undefined;
+}
+
+export interface AzureConfiguration {
+  $type: "wings.v1.cluster_metadata.AzureConfiguration";
+  /** Azure container name. */
+  readonly containerName: string;
+  /** Container prefix. */
+  readonly prefix?:
+    | string
+    | undefined;
+  /** `AZURE_STORAGE_ACCOUNT_NAME` */
+  readonly storageAccountName: string;
+  /** `AZURE_STORAGE_ACCOUNT_KEY` */
+  readonly storageAccountKey: string;
+}
+
+export interface GoogleConfiguration {
+  $type: "wings.v1.cluster_metadata.GoogleConfiguration";
+  /** / Bucket name. */
+  readonly bucketName: string;
+  /** / Bucket prefix. */
+  readonly prefix?:
+    | string
+    | undefined;
+  /** / `GOOGLE_SERVICE_ACCOUNT` */
+  readonly serviceAccount: string;
+  /** / `GOOGLE_SERVICE_ACCOUNT_KEY` */
+  readonly serviceAccountKey: string;
+}
+
+export interface S3CompatibleConfiguration {
+  $type: "wings.v1.cluster_metadata.S3CompatibleConfiguration";
+  /** Bucket name. */
+  readonly bucketName: string;
+  /** Bucket prefix. */
+  readonly prefix?:
+    | string
+    | undefined;
+  /** / `AWS_ACCESS_KEY_ID` */
+  readonly accessKeyId: string;
+  /** / `AWS_SECRET_ACCESS_KEY` */
+  readonly secretAccessKey: string;
+  /** / `AWS_DEFAULT_REGION` */
+  readonly region?:
+    | string
+    | undefined;
+  /** / `AWS_ENDPOINT` */
+  readonly endpoint: string;
+}
+
+export interface CreateDataLakeRequest {
+  $type: "wings.v1.cluster_metadata.CreateDataLakeRequest";
+  /**
+   * The tenant that owns the data lake.
+   *
+   * Format: tenants/{tenant}
+   */
+  readonly parent: string;
+  /** The data lake id. */
+  readonly dataLakeId: string;
+  /** The data lake metadata. */
+  readonly dataLake: DataLake | undefined;
+}
+
+export interface GetDataLakeRequest {
+  $type: "wings.v1.cluster_metadata.GetDataLakeRequest";
+  /**
+   * The data lake name.
+   *
+   * Format: tenants/{tenant}/data-lakes/{data-lake}
+   */
+  readonly name: string;
+}
+
+export interface ListDataLakesRequest {
+  $type: "wings.v1.cluster_metadata.ListDataLakesRequest";
+  /**
+   * The parent tenant.
+   *
+   * Format: tenants/{tenant}
+   */
+  readonly parent: string;
+  /**
+   * The number of data lakes to return.
+   *
+   * Default: 100
+   * Maximum: 1000.
+   */
+  readonly pageSize?:
+    | number
+    | undefined;
+  /** The continuation token. */
+  readonly pageToken?: string | undefined;
+}
+
+export interface ListDataLakesResponse {
+  $type: "wings.v1.cluster_metadata.ListDataLakesResponse";
+  /** The data lakes. */
+  readonly dataLakes: readonly DataLake[];
+  /** The continuation token. */
+  readonly nextPageToken: string;
+}
+
+export interface DeleteDataLakeRequest {
+  $type: "wings.v1.cluster_metadata.DeleteDataLakeRequest";
+  /**
+   * The data lake name.
+   *
+   * Format: tenants/{tenant}/data-lakes/{data-lake}
+   */
+  readonly name: string;
+}
+
+export interface DataLake {
+  $type: "wings.v1.cluster_metadata.DataLake";
+  /**
+   * The data lake name.
+   *
+   * Format: tenants/{tenant}/data-lakes/{data-lake}
+   */
+  readonly name: string;
+  /** Data lake configuration. */
+  readonly dataLakeConfig?: { readonly $case: "iceberg"; readonly iceberg: IcebergConfiguration } | {
+    readonly $case: "parquet";
+    readonly parquet: ParquetConfiguration;
+  } | undefined;
+}
+
+export interface IcebergConfiguration {
+  $type: "wings.v1.cluster_metadata.IcebergConfiguration";
+}
+
+export interface ParquetConfiguration {
+  $type: "wings.v1.cluster_metadata.ParquetConfiguration";
 }
 
 function createBaseCreateTenantRequest(): CreateTenantRequest {
@@ -1095,8 +1341,8 @@ function createBaseNamespace(): Namespace {
     name: "",
     flushSizeBytes: 0n,
     flushIntervalMillis: 0n,
-    defaultObjectStoreConfig: "",
-    frozenObjectStoreConfig: undefined,
+    objectStore: "",
+    dataLake: "",
   };
 }
 
@@ -1119,11 +1365,11 @@ export const Namespace: MessageFns<Namespace, "wings.v1.cluster_metadata.Namespa
       }
       writer.uint32(24).uint64(message.flushIntervalMillis);
     }
-    if (message.defaultObjectStoreConfig !== "") {
-      writer.uint32(34).string(message.defaultObjectStoreConfig);
+    if (message.objectStore !== "") {
+      writer.uint32(34).string(message.objectStore);
     }
-    if (message.frozenObjectStoreConfig !== undefined) {
-      writer.uint32(42).string(message.frozenObjectStoreConfig);
+    if (message.dataLake !== "") {
+      writer.uint32(42).string(message.dataLake);
     }
     return writer;
   },
@@ -1164,7 +1410,7 @@ export const Namespace: MessageFns<Namespace, "wings.v1.cluster_metadata.Namespa
             break;
           }
 
-          message.defaultObjectStoreConfig = reader.string();
+          message.objectStore = reader.string();
           continue;
         }
         case 5: {
@@ -1172,7 +1418,7 @@ export const Namespace: MessageFns<Namespace, "wings.v1.cluster_metadata.Namespa
             break;
           }
 
-          message.frozenObjectStoreConfig = reader.string();
+          message.dataLake = reader.string();
           continue;
         }
       }
@@ -1190,12 +1436,8 @@ export const Namespace: MessageFns<Namespace, "wings.v1.cluster_metadata.Namespa
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       flushSizeBytes: isSet(object.flushSizeBytes) ? BigInt(object.flushSizeBytes) : 0n,
       flushIntervalMillis: isSet(object.flushIntervalMillis) ? BigInt(object.flushIntervalMillis) : 0n,
-      defaultObjectStoreConfig: isSet(object.defaultObjectStoreConfig)
-        ? globalThis.String(object.defaultObjectStoreConfig)
-        : "",
-      frozenObjectStoreConfig: isSet(object.frozenObjectStoreConfig)
-        ? globalThis.String(object.frozenObjectStoreConfig)
-        : undefined,
+      objectStore: isSet(object.objectStore) ? globalThis.String(object.objectStore) : "",
+      dataLake: isSet(object.dataLake) ? globalThis.String(object.dataLake) : "",
     };
   },
 
@@ -1210,11 +1452,11 @@ export const Namespace: MessageFns<Namespace, "wings.v1.cluster_metadata.Namespa
     if (message.flushIntervalMillis !== 0n) {
       obj.flushIntervalMillis = message.flushIntervalMillis.toString();
     }
-    if (message.defaultObjectStoreConfig !== "") {
-      obj.defaultObjectStoreConfig = message.defaultObjectStoreConfig;
+    if (message.objectStore !== "") {
+      obj.objectStore = message.objectStore;
     }
-    if (message.frozenObjectStoreConfig !== undefined) {
-      obj.frozenObjectStoreConfig = message.frozenObjectStoreConfig;
+    if (message.dataLake !== "") {
+      obj.dataLake = message.dataLake;
     }
     return obj;
   },
@@ -1227,8 +1469,8 @@ export const Namespace: MessageFns<Namespace, "wings.v1.cluster_metadata.Namespa
     message.name = object.name ?? "";
     message.flushSizeBytes = object.flushSizeBytes ?? 0n;
     message.flushIntervalMillis = object.flushIntervalMillis ?? 0n;
-    message.defaultObjectStoreConfig = object.defaultObjectStoreConfig ?? "";
-    message.frozenObjectStoreConfig = object.frozenObjectStoreConfig ?? undefined;
+    message.objectStore = object.objectStore ?? "";
+    message.dataLake = object.dataLake ?? "";
     return message;
   },
 };
@@ -1659,7 +1901,14 @@ export const DeleteTopicRequest: MessageFns<DeleteTopicRequest, "wings.v1.cluste
 messageTypeRegistry.set(DeleteTopicRequest.$type, DeleteTopicRequest);
 
 function createBaseTopic(): Topic {
-  return { $type: "wings.v1.cluster_metadata.Topic", name: "", fields: new Uint8Array(0), partitionKey: undefined };
+  return {
+    $type: "wings.v1.cluster_metadata.Topic",
+    name: "",
+    fields: new Uint8Array(0),
+    description: undefined,
+    partitionKey: undefined,
+    compaction: undefined,
+  };
 }
 
 export const Topic: MessageFns<Topic, "wings.v1.cluster_metadata.Topic"> = {
@@ -1672,8 +1921,14 @@ export const Topic: MessageFns<Topic, "wings.v1.cluster_metadata.Topic"> = {
     if (message.fields.length !== 0) {
       writer.uint32(18).bytes(message.fields);
     }
+    if (message.description !== undefined) {
+      writer.uint32(26).string(message.description);
+    }
     if (message.partitionKey !== undefined) {
-      writer.uint32(24).uint32(message.partitionKey);
+      writer.uint32(32).uint32(message.partitionKey);
+    }
+    if (message.compaction !== undefined) {
+      CompactionConfiguration.encode(message.compaction, writer.uint32(42).fork()).join();
     }
     return writer;
   },
@@ -1702,11 +1957,27 @@ export const Topic: MessageFns<Topic, "wings.v1.cluster_metadata.Topic"> = {
           continue;
         }
         case 3: {
-          if (tag !== 24) {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
             break;
           }
 
           message.partitionKey = reader.uint32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.compaction = CompactionConfiguration.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -1723,7 +1994,9 @@ export const Topic: MessageFns<Topic, "wings.v1.cluster_metadata.Topic"> = {
       $type: Topic.$type,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       fields: isSet(object.fields) ? bytesFromBase64(object.fields) : new Uint8Array(0),
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
       partitionKey: isSet(object.partitionKey) ? globalThis.Number(object.partitionKey) : undefined,
+      compaction: isSet(object.compaction) ? CompactionConfiguration.fromJSON(object.compaction) : undefined,
     };
   },
 
@@ -1735,8 +2008,14 @@ export const Topic: MessageFns<Topic, "wings.v1.cluster_metadata.Topic"> = {
     if (message.fields.length !== 0) {
       obj.fields = base64FromBytes(message.fields);
     }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
     if (message.partitionKey !== undefined) {
       obj.partitionKey = Math.round(message.partitionKey);
+    }
+    if (message.compaction !== undefined) {
+      obj.compaction = CompactionConfiguration.toJSON(message.compaction);
     }
     return obj;
   },
@@ -1748,12 +2027,1864 @@ export const Topic: MessageFns<Topic, "wings.v1.cluster_metadata.Topic"> = {
     const message = createBaseTopic() as any;
     message.name = object.name ?? "";
     message.fields = object.fields ?? new Uint8Array(0);
+    message.description = object.description ?? undefined;
     message.partitionKey = object.partitionKey ?? undefined;
+    message.compaction = (object.compaction !== undefined && object.compaction !== null)
+      ? CompactionConfiguration.fromPartial(object.compaction)
+      : undefined;
     return message;
   },
 };
 
 messageTypeRegistry.set(Topic.$type, Topic);
+
+function createBaseCompactionConfiguration(): CompactionConfiguration {
+  return { $type: "wings.v1.cluster_metadata.CompactionConfiguration", freshnessSeconds: 0n, ttlSeconds: undefined };
+}
+
+export const CompactionConfiguration: MessageFns<
+  CompactionConfiguration,
+  "wings.v1.cluster_metadata.CompactionConfiguration"
+> = {
+  $type: "wings.v1.cluster_metadata.CompactionConfiguration" as const,
+
+  encode(message: CompactionConfiguration, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.freshnessSeconds !== 0n) {
+      if (BigInt.asUintN(64, message.freshnessSeconds) !== message.freshnessSeconds) {
+        throw new globalThis.Error("value provided for field message.freshnessSeconds of type uint64 too large");
+      }
+      writer.uint32(8).uint64(message.freshnessSeconds);
+    }
+    if (message.ttlSeconds !== undefined) {
+      if (BigInt.asUintN(64, message.ttlSeconds) !== message.ttlSeconds) {
+        throw new globalThis.Error("value provided for field message.ttlSeconds of type uint64 too large");
+      }
+      writer.uint32(16).uint64(message.ttlSeconds);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CompactionConfiguration {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCompactionConfiguration() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.freshnessSeconds = reader.uint64() as bigint;
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.ttlSeconds = reader.uint64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CompactionConfiguration {
+    return {
+      $type: CompactionConfiguration.$type,
+      freshnessSeconds: isSet(object.freshnessSeconds) ? BigInt(object.freshnessSeconds) : 0n,
+      ttlSeconds: isSet(object.ttlSeconds) ? BigInt(object.ttlSeconds) : undefined,
+    };
+  },
+
+  toJSON(message: CompactionConfiguration): unknown {
+    const obj: any = {};
+    if (message.freshnessSeconds !== 0n) {
+      obj.freshnessSeconds = message.freshnessSeconds.toString();
+    }
+    if (message.ttlSeconds !== undefined) {
+      obj.ttlSeconds = message.ttlSeconds.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CompactionConfiguration>, I>>(base?: I): CompactionConfiguration {
+    return CompactionConfiguration.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CompactionConfiguration>, I>>(object: I): CompactionConfiguration {
+    const message = createBaseCompactionConfiguration() as any;
+    message.freshnessSeconds = object.freshnessSeconds ?? 0n;
+    message.ttlSeconds = object.ttlSeconds ?? undefined;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(CompactionConfiguration.$type, CompactionConfiguration);
+
+function createBaseCreateObjectStoreRequest(): CreateObjectStoreRequest {
+  return {
+    $type: "wings.v1.cluster_metadata.CreateObjectStoreRequest",
+    parent: "",
+    objectStoreId: "",
+    objectStore: undefined,
+  };
+}
+
+export const CreateObjectStoreRequest: MessageFns<
+  CreateObjectStoreRequest,
+  "wings.v1.cluster_metadata.CreateObjectStoreRequest"
+> = {
+  $type: "wings.v1.cluster_metadata.CreateObjectStoreRequest" as const,
+
+  encode(message: CreateObjectStoreRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.parent !== "") {
+      writer.uint32(10).string(message.parent);
+    }
+    if (message.objectStoreId !== "") {
+      writer.uint32(18).string(message.objectStoreId);
+    }
+    if (message.objectStore !== undefined) {
+      ObjectStore.encode(message.objectStore, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CreateObjectStoreRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCreateObjectStoreRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.parent = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.objectStoreId = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.objectStore = ObjectStore.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CreateObjectStoreRequest {
+    return {
+      $type: CreateObjectStoreRequest.$type,
+      parent: isSet(object.parent) ? globalThis.String(object.parent) : "",
+      objectStoreId: isSet(object.objectStoreId) ? globalThis.String(object.objectStoreId) : "",
+      objectStore: isSet(object.objectStore) ? ObjectStore.fromJSON(object.objectStore) : undefined,
+    };
+  },
+
+  toJSON(message: CreateObjectStoreRequest): unknown {
+    const obj: any = {};
+    if (message.parent !== "") {
+      obj.parent = message.parent;
+    }
+    if (message.objectStoreId !== "") {
+      obj.objectStoreId = message.objectStoreId;
+    }
+    if (message.objectStore !== undefined) {
+      obj.objectStore = ObjectStore.toJSON(message.objectStore);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CreateObjectStoreRequest>, I>>(base?: I): CreateObjectStoreRequest {
+    return CreateObjectStoreRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CreateObjectStoreRequest>, I>>(object: I): CreateObjectStoreRequest {
+    const message = createBaseCreateObjectStoreRequest() as any;
+    message.parent = object.parent ?? "";
+    message.objectStoreId = object.objectStoreId ?? "";
+    message.objectStore = (object.objectStore !== undefined && object.objectStore !== null)
+      ? ObjectStore.fromPartial(object.objectStore)
+      : undefined;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(CreateObjectStoreRequest.$type, CreateObjectStoreRequest);
+
+function createBaseGetObjectStoreRequest(): GetObjectStoreRequest {
+  return { $type: "wings.v1.cluster_metadata.GetObjectStoreRequest", name: "" };
+}
+
+export const GetObjectStoreRequest: MessageFns<
+  GetObjectStoreRequest,
+  "wings.v1.cluster_metadata.GetObjectStoreRequest"
+> = {
+  $type: "wings.v1.cluster_metadata.GetObjectStoreRequest" as const,
+
+  encode(message: GetObjectStoreRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetObjectStoreRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetObjectStoreRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetObjectStoreRequest {
+    return { $type: GetObjectStoreRequest.$type, name: isSet(object.name) ? globalThis.String(object.name) : "" };
+  },
+
+  toJSON(message: GetObjectStoreRequest): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetObjectStoreRequest>, I>>(base?: I): GetObjectStoreRequest {
+    return GetObjectStoreRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetObjectStoreRequest>, I>>(object: I): GetObjectStoreRequest {
+    const message = createBaseGetObjectStoreRequest() as any;
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(GetObjectStoreRequest.$type, GetObjectStoreRequest);
+
+function createBaseListObjectStoresRequest(): ListObjectStoresRequest {
+  return {
+    $type: "wings.v1.cluster_metadata.ListObjectStoresRequest",
+    parent: "",
+    pageSize: undefined,
+    pageToken: undefined,
+  };
+}
+
+export const ListObjectStoresRequest: MessageFns<
+  ListObjectStoresRequest,
+  "wings.v1.cluster_metadata.ListObjectStoresRequest"
+> = {
+  $type: "wings.v1.cluster_metadata.ListObjectStoresRequest" as const,
+
+  encode(message: ListObjectStoresRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.parent !== "") {
+      writer.uint32(10).string(message.parent);
+    }
+    if (message.pageSize !== undefined) {
+      writer.uint32(16).int32(message.pageSize);
+    }
+    if (message.pageToken !== undefined) {
+      writer.uint32(26).string(message.pageToken);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListObjectStoresRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListObjectStoresRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.parent = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.pageSize = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.pageToken = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListObjectStoresRequest {
+    return {
+      $type: ListObjectStoresRequest.$type,
+      parent: isSet(object.parent) ? globalThis.String(object.parent) : "",
+      pageSize: isSet(object.pageSize) ? globalThis.Number(object.pageSize) : undefined,
+      pageToken: isSet(object.pageToken) ? globalThis.String(object.pageToken) : undefined,
+    };
+  },
+
+  toJSON(message: ListObjectStoresRequest): unknown {
+    const obj: any = {};
+    if (message.parent !== "") {
+      obj.parent = message.parent;
+    }
+    if (message.pageSize !== undefined) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    if (message.pageToken !== undefined) {
+      obj.pageToken = message.pageToken;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListObjectStoresRequest>, I>>(base?: I): ListObjectStoresRequest {
+    return ListObjectStoresRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListObjectStoresRequest>, I>>(object: I): ListObjectStoresRequest {
+    const message = createBaseListObjectStoresRequest() as any;
+    message.parent = object.parent ?? "";
+    message.pageSize = object.pageSize ?? undefined;
+    message.pageToken = object.pageToken ?? undefined;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(ListObjectStoresRequest.$type, ListObjectStoresRequest);
+
+function createBaseListObjectStoresResponse(): ListObjectStoresResponse {
+  return { $type: "wings.v1.cluster_metadata.ListObjectStoresResponse", objectStores: [], nextPageToken: "" };
+}
+
+export const ListObjectStoresResponse: MessageFns<
+  ListObjectStoresResponse,
+  "wings.v1.cluster_metadata.ListObjectStoresResponse"
+> = {
+  $type: "wings.v1.cluster_metadata.ListObjectStoresResponse" as const,
+
+  encode(message: ListObjectStoresResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.objectStores) {
+      ObjectStore.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.nextPageToken !== "") {
+      writer.uint32(18).string(message.nextPageToken);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListObjectStoresResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListObjectStoresResponse() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.objectStores.push(ObjectStore.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.nextPageToken = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListObjectStoresResponse {
+    return {
+      $type: ListObjectStoresResponse.$type,
+      objectStores: globalThis.Array.isArray(object?.objectStores)
+        ? object.objectStores.map((e: any) => ObjectStore.fromJSON(e))
+        : [],
+      nextPageToken: isSet(object.nextPageToken) ? globalThis.String(object.nextPageToken) : "",
+    };
+  },
+
+  toJSON(message: ListObjectStoresResponse): unknown {
+    const obj: any = {};
+    if (message.objectStores?.length) {
+      obj.objectStores = message.objectStores.map((e) => ObjectStore.toJSON(e));
+    }
+    if (message.nextPageToken !== "") {
+      obj.nextPageToken = message.nextPageToken;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListObjectStoresResponse>, I>>(base?: I): ListObjectStoresResponse {
+    return ListObjectStoresResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListObjectStoresResponse>, I>>(object: I): ListObjectStoresResponse {
+    const message = createBaseListObjectStoresResponse() as any;
+    message.objectStores = object.objectStores?.map((e) => ObjectStore.fromPartial(e)) || [];
+    message.nextPageToken = object.nextPageToken ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(ListObjectStoresResponse.$type, ListObjectStoresResponse);
+
+function createBaseDeleteObjectStoreRequest(): DeleteObjectStoreRequest {
+  return { $type: "wings.v1.cluster_metadata.DeleteObjectStoreRequest", name: "" };
+}
+
+export const DeleteObjectStoreRequest: MessageFns<
+  DeleteObjectStoreRequest,
+  "wings.v1.cluster_metadata.DeleteObjectStoreRequest"
+> = {
+  $type: "wings.v1.cluster_metadata.DeleteObjectStoreRequest" as const,
+
+  encode(message: DeleteObjectStoreRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteObjectStoreRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteObjectStoreRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DeleteObjectStoreRequest {
+    return { $type: DeleteObjectStoreRequest.$type, name: isSet(object.name) ? globalThis.String(object.name) : "" };
+  },
+
+  toJSON(message: DeleteObjectStoreRequest): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DeleteObjectStoreRequest>, I>>(base?: I): DeleteObjectStoreRequest {
+    return DeleteObjectStoreRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DeleteObjectStoreRequest>, I>>(object: I): DeleteObjectStoreRequest {
+    const message = createBaseDeleteObjectStoreRequest() as any;
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(DeleteObjectStoreRequest.$type, DeleteObjectStoreRequest);
+
+function createBaseObjectStore(): ObjectStore {
+  return { $type: "wings.v1.cluster_metadata.ObjectStore", name: "", objectStoreConfig: undefined };
+}
+
+export const ObjectStore: MessageFns<ObjectStore, "wings.v1.cluster_metadata.ObjectStore"> = {
+  $type: "wings.v1.cluster_metadata.ObjectStore" as const,
+
+  encode(message: ObjectStore, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    switch (message.objectStoreConfig?.$case) {
+      case "aws":
+        AwsConfiguration.encode(message.objectStoreConfig.aws, writer.uint32(18).fork()).join();
+        break;
+      case "azure":
+        AzureConfiguration.encode(message.objectStoreConfig.azure, writer.uint32(26).fork()).join();
+        break;
+      case "google":
+        GoogleConfiguration.encode(message.objectStoreConfig.google, writer.uint32(34).fork()).join();
+        break;
+      case "s3Compatible":
+        S3CompatibleConfiguration.encode(message.objectStoreConfig.s3Compatible, writer.uint32(42).fork()).join();
+        break;
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ObjectStore {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseObjectStore() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.objectStoreConfig = { $case: "aws", aws: AwsConfiguration.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.objectStoreConfig = { $case: "azure", azure: AzureConfiguration.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.objectStoreConfig = { $case: "google", google: GoogleConfiguration.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.objectStoreConfig = {
+            $case: "s3Compatible",
+            s3Compatible: S3CompatibleConfiguration.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ObjectStore {
+    return {
+      $type: ObjectStore.$type,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      objectStoreConfig: isSet(object.aws)
+        ? { $case: "aws", aws: AwsConfiguration.fromJSON(object.aws) }
+        : isSet(object.azure)
+        ? { $case: "azure", azure: AzureConfiguration.fromJSON(object.azure) }
+        : isSet(object.google)
+        ? { $case: "google", google: GoogleConfiguration.fromJSON(object.google) }
+        : isSet(object.s3Compatible)
+        ? { $case: "s3Compatible", s3Compatible: S3CompatibleConfiguration.fromJSON(object.s3Compatible) }
+        : undefined,
+    };
+  },
+
+  toJSON(message: ObjectStore): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.objectStoreConfig?.$case === "aws") {
+      obj.aws = AwsConfiguration.toJSON(message.objectStoreConfig.aws);
+    } else if (message.objectStoreConfig?.$case === "azure") {
+      obj.azure = AzureConfiguration.toJSON(message.objectStoreConfig.azure);
+    } else if (message.objectStoreConfig?.$case === "google") {
+      obj.google = GoogleConfiguration.toJSON(message.objectStoreConfig.google);
+    } else if (message.objectStoreConfig?.$case === "s3Compatible") {
+      obj.s3Compatible = S3CompatibleConfiguration.toJSON(message.objectStoreConfig.s3Compatible);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ObjectStore>, I>>(base?: I): ObjectStore {
+    return ObjectStore.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ObjectStore>, I>>(object: I): ObjectStore {
+    const message = createBaseObjectStore() as any;
+    message.name = object.name ?? "";
+    switch (object.objectStoreConfig?.$case) {
+      case "aws": {
+        if (object.objectStoreConfig?.aws !== undefined && object.objectStoreConfig?.aws !== null) {
+          message.objectStoreConfig = { $case: "aws", aws: AwsConfiguration.fromPartial(object.objectStoreConfig.aws) };
+        }
+        break;
+      }
+      case "azure": {
+        if (object.objectStoreConfig?.azure !== undefined && object.objectStoreConfig?.azure !== null) {
+          message.objectStoreConfig = {
+            $case: "azure",
+            azure: AzureConfiguration.fromPartial(object.objectStoreConfig.azure),
+          };
+        }
+        break;
+      }
+      case "google": {
+        if (object.objectStoreConfig?.google !== undefined && object.objectStoreConfig?.google !== null) {
+          message.objectStoreConfig = {
+            $case: "google",
+            google: GoogleConfiguration.fromPartial(object.objectStoreConfig.google),
+          };
+        }
+        break;
+      }
+      case "s3Compatible": {
+        if (object.objectStoreConfig?.s3Compatible !== undefined && object.objectStoreConfig?.s3Compatible !== null) {
+          message.objectStoreConfig = {
+            $case: "s3Compatible",
+            s3Compatible: S3CompatibleConfiguration.fromPartial(object.objectStoreConfig.s3Compatible),
+          };
+        }
+        break;
+      }
+    }
+    return message;
+  },
+};
+
+messageTypeRegistry.set(ObjectStore.$type, ObjectStore);
+
+function createBaseAwsConfiguration(): AwsConfiguration {
+  return {
+    $type: "wings.v1.cluster_metadata.AwsConfiguration",
+    bucketName: "",
+    prefix: undefined,
+    accessKeyId: "",
+    secretAccessKey: "",
+    region: undefined,
+  };
+}
+
+export const AwsConfiguration: MessageFns<AwsConfiguration, "wings.v1.cluster_metadata.AwsConfiguration"> = {
+  $type: "wings.v1.cluster_metadata.AwsConfiguration" as const,
+
+  encode(message: AwsConfiguration, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bucketName !== "") {
+      writer.uint32(10).string(message.bucketName);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.accessKeyId !== "") {
+      writer.uint32(26).string(message.accessKeyId);
+    }
+    if (message.secretAccessKey !== "") {
+      writer.uint32(34).string(message.secretAccessKey);
+    }
+    if (message.region !== undefined) {
+      writer.uint32(42).string(message.region);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AwsConfiguration {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAwsConfiguration() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.bucketName = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.prefix = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.accessKeyId = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.secretAccessKey = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.region = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): AwsConfiguration {
+    return {
+      $type: AwsConfiguration.$type,
+      bucketName: isSet(object.bucketName) ? globalThis.String(object.bucketName) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      accessKeyId: isSet(object.accessKeyId) ? globalThis.String(object.accessKeyId) : "",
+      secretAccessKey: isSet(object.secretAccessKey) ? globalThis.String(object.secretAccessKey) : "",
+      region: isSet(object.region) ? globalThis.String(object.region) : undefined,
+    };
+  },
+
+  toJSON(message: AwsConfiguration): unknown {
+    const obj: any = {};
+    if (message.bucketName !== "") {
+      obj.bucketName = message.bucketName;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.accessKeyId !== "") {
+      obj.accessKeyId = message.accessKeyId;
+    }
+    if (message.secretAccessKey !== "") {
+      obj.secretAccessKey = message.secretAccessKey;
+    }
+    if (message.region !== undefined) {
+      obj.region = message.region;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AwsConfiguration>, I>>(base?: I): AwsConfiguration {
+    return AwsConfiguration.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AwsConfiguration>, I>>(object: I): AwsConfiguration {
+    const message = createBaseAwsConfiguration() as any;
+    message.bucketName = object.bucketName ?? "";
+    message.prefix = object.prefix ?? undefined;
+    message.accessKeyId = object.accessKeyId ?? "";
+    message.secretAccessKey = object.secretAccessKey ?? "";
+    message.region = object.region ?? undefined;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(AwsConfiguration.$type, AwsConfiguration);
+
+function createBaseAzureConfiguration(): AzureConfiguration {
+  return {
+    $type: "wings.v1.cluster_metadata.AzureConfiguration",
+    containerName: "",
+    prefix: undefined,
+    storageAccountName: "",
+    storageAccountKey: "",
+  };
+}
+
+export const AzureConfiguration: MessageFns<AzureConfiguration, "wings.v1.cluster_metadata.AzureConfiguration"> = {
+  $type: "wings.v1.cluster_metadata.AzureConfiguration" as const,
+
+  encode(message: AzureConfiguration, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.containerName !== "") {
+      writer.uint32(10).string(message.containerName);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.storageAccountName !== "") {
+      writer.uint32(26).string(message.storageAccountName);
+    }
+    if (message.storageAccountKey !== "") {
+      writer.uint32(34).string(message.storageAccountKey);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AzureConfiguration {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAzureConfiguration() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.containerName = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.prefix = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.storageAccountName = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.storageAccountKey = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): AzureConfiguration {
+    return {
+      $type: AzureConfiguration.$type,
+      containerName: isSet(object.containerName) ? globalThis.String(object.containerName) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      storageAccountName: isSet(object.storageAccountName) ? globalThis.String(object.storageAccountName) : "",
+      storageAccountKey: isSet(object.storageAccountKey) ? globalThis.String(object.storageAccountKey) : "",
+    };
+  },
+
+  toJSON(message: AzureConfiguration): unknown {
+    const obj: any = {};
+    if (message.containerName !== "") {
+      obj.containerName = message.containerName;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.storageAccountName !== "") {
+      obj.storageAccountName = message.storageAccountName;
+    }
+    if (message.storageAccountKey !== "") {
+      obj.storageAccountKey = message.storageAccountKey;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AzureConfiguration>, I>>(base?: I): AzureConfiguration {
+    return AzureConfiguration.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AzureConfiguration>, I>>(object: I): AzureConfiguration {
+    const message = createBaseAzureConfiguration() as any;
+    message.containerName = object.containerName ?? "";
+    message.prefix = object.prefix ?? undefined;
+    message.storageAccountName = object.storageAccountName ?? "";
+    message.storageAccountKey = object.storageAccountKey ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(AzureConfiguration.$type, AzureConfiguration);
+
+function createBaseGoogleConfiguration(): GoogleConfiguration {
+  return {
+    $type: "wings.v1.cluster_metadata.GoogleConfiguration",
+    bucketName: "",
+    prefix: undefined,
+    serviceAccount: "",
+    serviceAccountKey: "",
+  };
+}
+
+export const GoogleConfiguration: MessageFns<GoogleConfiguration, "wings.v1.cluster_metadata.GoogleConfiguration"> = {
+  $type: "wings.v1.cluster_metadata.GoogleConfiguration" as const,
+
+  encode(message: GoogleConfiguration, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bucketName !== "") {
+      writer.uint32(10).string(message.bucketName);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.serviceAccount !== "") {
+      writer.uint32(26).string(message.serviceAccount);
+    }
+    if (message.serviceAccountKey !== "") {
+      writer.uint32(34).string(message.serviceAccountKey);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GoogleConfiguration {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGoogleConfiguration() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.bucketName = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.prefix = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.serviceAccount = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.serviceAccountKey = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GoogleConfiguration {
+    return {
+      $type: GoogleConfiguration.$type,
+      bucketName: isSet(object.bucketName) ? globalThis.String(object.bucketName) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      serviceAccount: isSet(object.serviceAccount) ? globalThis.String(object.serviceAccount) : "",
+      serviceAccountKey: isSet(object.serviceAccountKey) ? globalThis.String(object.serviceAccountKey) : "",
+    };
+  },
+
+  toJSON(message: GoogleConfiguration): unknown {
+    const obj: any = {};
+    if (message.bucketName !== "") {
+      obj.bucketName = message.bucketName;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.serviceAccount !== "") {
+      obj.serviceAccount = message.serviceAccount;
+    }
+    if (message.serviceAccountKey !== "") {
+      obj.serviceAccountKey = message.serviceAccountKey;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GoogleConfiguration>, I>>(base?: I): GoogleConfiguration {
+    return GoogleConfiguration.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GoogleConfiguration>, I>>(object: I): GoogleConfiguration {
+    const message = createBaseGoogleConfiguration() as any;
+    message.bucketName = object.bucketName ?? "";
+    message.prefix = object.prefix ?? undefined;
+    message.serviceAccount = object.serviceAccount ?? "";
+    message.serviceAccountKey = object.serviceAccountKey ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(GoogleConfiguration.$type, GoogleConfiguration);
+
+function createBaseS3CompatibleConfiguration(): S3CompatibleConfiguration {
+  return {
+    $type: "wings.v1.cluster_metadata.S3CompatibleConfiguration",
+    bucketName: "",
+    prefix: undefined,
+    accessKeyId: "",
+    secretAccessKey: "",
+    region: undefined,
+    endpoint: "",
+  };
+}
+
+export const S3CompatibleConfiguration: MessageFns<
+  S3CompatibleConfiguration,
+  "wings.v1.cluster_metadata.S3CompatibleConfiguration"
+> = {
+  $type: "wings.v1.cluster_metadata.S3CompatibleConfiguration" as const,
+
+  encode(message: S3CompatibleConfiguration, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bucketName !== "") {
+      writer.uint32(10).string(message.bucketName);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.accessKeyId !== "") {
+      writer.uint32(26).string(message.accessKeyId);
+    }
+    if (message.secretAccessKey !== "") {
+      writer.uint32(34).string(message.secretAccessKey);
+    }
+    if (message.region !== undefined) {
+      writer.uint32(42).string(message.region);
+    }
+    if (message.endpoint !== "") {
+      writer.uint32(50).string(message.endpoint);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): S3CompatibleConfiguration {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseS3CompatibleConfiguration() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.bucketName = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.prefix = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.accessKeyId = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.secretAccessKey = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.region = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.endpoint = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): S3CompatibleConfiguration {
+    return {
+      $type: S3CompatibleConfiguration.$type,
+      bucketName: isSet(object.bucketName) ? globalThis.String(object.bucketName) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      accessKeyId: isSet(object.accessKeyId) ? globalThis.String(object.accessKeyId) : "",
+      secretAccessKey: isSet(object.secretAccessKey) ? globalThis.String(object.secretAccessKey) : "",
+      region: isSet(object.region) ? globalThis.String(object.region) : undefined,
+      endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "",
+    };
+  },
+
+  toJSON(message: S3CompatibleConfiguration): unknown {
+    const obj: any = {};
+    if (message.bucketName !== "") {
+      obj.bucketName = message.bucketName;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.accessKeyId !== "") {
+      obj.accessKeyId = message.accessKeyId;
+    }
+    if (message.secretAccessKey !== "") {
+      obj.secretAccessKey = message.secretAccessKey;
+    }
+    if (message.region !== undefined) {
+      obj.region = message.region;
+    }
+    if (message.endpoint !== "") {
+      obj.endpoint = message.endpoint;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<S3CompatibleConfiguration>, I>>(base?: I): S3CompatibleConfiguration {
+    return S3CompatibleConfiguration.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<S3CompatibleConfiguration>, I>>(object: I): S3CompatibleConfiguration {
+    const message = createBaseS3CompatibleConfiguration() as any;
+    message.bucketName = object.bucketName ?? "";
+    message.prefix = object.prefix ?? undefined;
+    message.accessKeyId = object.accessKeyId ?? "";
+    message.secretAccessKey = object.secretAccessKey ?? "";
+    message.region = object.region ?? undefined;
+    message.endpoint = object.endpoint ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(S3CompatibleConfiguration.$type, S3CompatibleConfiguration);
+
+function createBaseCreateDataLakeRequest(): CreateDataLakeRequest {
+  return { $type: "wings.v1.cluster_metadata.CreateDataLakeRequest", parent: "", dataLakeId: "", dataLake: undefined };
+}
+
+export const CreateDataLakeRequest: MessageFns<
+  CreateDataLakeRequest,
+  "wings.v1.cluster_metadata.CreateDataLakeRequest"
+> = {
+  $type: "wings.v1.cluster_metadata.CreateDataLakeRequest" as const,
+
+  encode(message: CreateDataLakeRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.parent !== "") {
+      writer.uint32(10).string(message.parent);
+    }
+    if (message.dataLakeId !== "") {
+      writer.uint32(18).string(message.dataLakeId);
+    }
+    if (message.dataLake !== undefined) {
+      DataLake.encode(message.dataLake, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CreateDataLakeRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCreateDataLakeRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.parent = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.dataLakeId = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.dataLake = DataLake.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CreateDataLakeRequest {
+    return {
+      $type: CreateDataLakeRequest.$type,
+      parent: isSet(object.parent) ? globalThis.String(object.parent) : "",
+      dataLakeId: isSet(object.dataLakeId) ? globalThis.String(object.dataLakeId) : "",
+      dataLake: isSet(object.dataLake) ? DataLake.fromJSON(object.dataLake) : undefined,
+    };
+  },
+
+  toJSON(message: CreateDataLakeRequest): unknown {
+    const obj: any = {};
+    if (message.parent !== "") {
+      obj.parent = message.parent;
+    }
+    if (message.dataLakeId !== "") {
+      obj.dataLakeId = message.dataLakeId;
+    }
+    if (message.dataLake !== undefined) {
+      obj.dataLake = DataLake.toJSON(message.dataLake);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CreateDataLakeRequest>, I>>(base?: I): CreateDataLakeRequest {
+    return CreateDataLakeRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CreateDataLakeRequest>, I>>(object: I): CreateDataLakeRequest {
+    const message = createBaseCreateDataLakeRequest() as any;
+    message.parent = object.parent ?? "";
+    message.dataLakeId = object.dataLakeId ?? "";
+    message.dataLake = (object.dataLake !== undefined && object.dataLake !== null)
+      ? DataLake.fromPartial(object.dataLake)
+      : undefined;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(CreateDataLakeRequest.$type, CreateDataLakeRequest);
+
+function createBaseGetDataLakeRequest(): GetDataLakeRequest {
+  return { $type: "wings.v1.cluster_metadata.GetDataLakeRequest", name: "" };
+}
+
+export const GetDataLakeRequest: MessageFns<GetDataLakeRequest, "wings.v1.cluster_metadata.GetDataLakeRequest"> = {
+  $type: "wings.v1.cluster_metadata.GetDataLakeRequest" as const,
+
+  encode(message: GetDataLakeRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetDataLakeRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetDataLakeRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetDataLakeRequest {
+    return { $type: GetDataLakeRequest.$type, name: isSet(object.name) ? globalThis.String(object.name) : "" };
+  },
+
+  toJSON(message: GetDataLakeRequest): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetDataLakeRequest>, I>>(base?: I): GetDataLakeRequest {
+    return GetDataLakeRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetDataLakeRequest>, I>>(object: I): GetDataLakeRequest {
+    const message = createBaseGetDataLakeRequest() as any;
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(GetDataLakeRequest.$type, GetDataLakeRequest);
+
+function createBaseListDataLakesRequest(): ListDataLakesRequest {
+  return {
+    $type: "wings.v1.cluster_metadata.ListDataLakesRequest",
+    parent: "",
+    pageSize: undefined,
+    pageToken: undefined,
+  };
+}
+
+export const ListDataLakesRequest: MessageFns<ListDataLakesRequest, "wings.v1.cluster_metadata.ListDataLakesRequest"> =
+  {
+    $type: "wings.v1.cluster_metadata.ListDataLakesRequest" as const,
+
+    encode(message: ListDataLakesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+      if (message.parent !== "") {
+        writer.uint32(10).string(message.parent);
+      }
+      if (message.pageSize !== undefined) {
+        writer.uint32(16).int32(message.pageSize);
+      }
+      if (message.pageToken !== undefined) {
+        writer.uint32(26).string(message.pageToken);
+      }
+      return writer;
+    },
+
+    decode(input: BinaryReader | Uint8Array, length?: number): ListDataLakesRequest {
+      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+      let end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseListDataLakesRequest() as any;
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.parent = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.pageSize = reader.int32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.pageToken = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    },
+
+    fromJSON(object: any): ListDataLakesRequest {
+      return {
+        $type: ListDataLakesRequest.$type,
+        parent: isSet(object.parent) ? globalThis.String(object.parent) : "",
+        pageSize: isSet(object.pageSize) ? globalThis.Number(object.pageSize) : undefined,
+        pageToken: isSet(object.pageToken) ? globalThis.String(object.pageToken) : undefined,
+      };
+    },
+
+    toJSON(message: ListDataLakesRequest): unknown {
+      const obj: any = {};
+      if (message.parent !== "") {
+        obj.parent = message.parent;
+      }
+      if (message.pageSize !== undefined) {
+        obj.pageSize = Math.round(message.pageSize);
+      }
+      if (message.pageToken !== undefined) {
+        obj.pageToken = message.pageToken;
+      }
+      return obj;
+    },
+
+    create<I extends Exact<DeepPartial<ListDataLakesRequest>, I>>(base?: I): ListDataLakesRequest {
+      return ListDataLakesRequest.fromPartial(base ?? ({} as any));
+    },
+    fromPartial<I extends Exact<DeepPartial<ListDataLakesRequest>, I>>(object: I): ListDataLakesRequest {
+      const message = createBaseListDataLakesRequest() as any;
+      message.parent = object.parent ?? "";
+      message.pageSize = object.pageSize ?? undefined;
+      message.pageToken = object.pageToken ?? undefined;
+      return message;
+    },
+  };
+
+messageTypeRegistry.set(ListDataLakesRequest.$type, ListDataLakesRequest);
+
+function createBaseListDataLakesResponse(): ListDataLakesResponse {
+  return { $type: "wings.v1.cluster_metadata.ListDataLakesResponse", dataLakes: [], nextPageToken: "" };
+}
+
+export const ListDataLakesResponse: MessageFns<
+  ListDataLakesResponse,
+  "wings.v1.cluster_metadata.ListDataLakesResponse"
+> = {
+  $type: "wings.v1.cluster_metadata.ListDataLakesResponse" as const,
+
+  encode(message: ListDataLakesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.dataLakes) {
+      DataLake.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.nextPageToken !== "") {
+      writer.uint32(18).string(message.nextPageToken);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListDataLakesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListDataLakesResponse() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.dataLakes.push(DataLake.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.nextPageToken = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListDataLakesResponse {
+    return {
+      $type: ListDataLakesResponse.$type,
+      dataLakes: globalThis.Array.isArray(object?.dataLakes)
+        ? object.dataLakes.map((e: any) => DataLake.fromJSON(e))
+        : [],
+      nextPageToken: isSet(object.nextPageToken) ? globalThis.String(object.nextPageToken) : "",
+    };
+  },
+
+  toJSON(message: ListDataLakesResponse): unknown {
+    const obj: any = {};
+    if (message.dataLakes?.length) {
+      obj.dataLakes = message.dataLakes.map((e) => DataLake.toJSON(e));
+    }
+    if (message.nextPageToken !== "") {
+      obj.nextPageToken = message.nextPageToken;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ListDataLakesResponse>, I>>(base?: I): ListDataLakesResponse {
+    return ListDataLakesResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ListDataLakesResponse>, I>>(object: I): ListDataLakesResponse {
+    const message = createBaseListDataLakesResponse() as any;
+    message.dataLakes = object.dataLakes?.map((e) => DataLake.fromPartial(e)) || [];
+    message.nextPageToken = object.nextPageToken ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(ListDataLakesResponse.$type, ListDataLakesResponse);
+
+function createBaseDeleteDataLakeRequest(): DeleteDataLakeRequest {
+  return { $type: "wings.v1.cluster_metadata.DeleteDataLakeRequest", name: "" };
+}
+
+export const DeleteDataLakeRequest: MessageFns<
+  DeleteDataLakeRequest,
+  "wings.v1.cluster_metadata.DeleteDataLakeRequest"
+> = {
+  $type: "wings.v1.cluster_metadata.DeleteDataLakeRequest" as const,
+
+  encode(message: DeleteDataLakeRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteDataLakeRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteDataLakeRequest() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DeleteDataLakeRequest {
+    return { $type: DeleteDataLakeRequest.$type, name: isSet(object.name) ? globalThis.String(object.name) : "" };
+  },
+
+  toJSON(message: DeleteDataLakeRequest): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DeleteDataLakeRequest>, I>>(base?: I): DeleteDataLakeRequest {
+    return DeleteDataLakeRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DeleteDataLakeRequest>, I>>(object: I): DeleteDataLakeRequest {
+    const message = createBaseDeleteDataLakeRequest() as any;
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+messageTypeRegistry.set(DeleteDataLakeRequest.$type, DeleteDataLakeRequest);
+
+function createBaseDataLake(): DataLake {
+  return { $type: "wings.v1.cluster_metadata.DataLake", name: "", dataLakeConfig: undefined };
+}
+
+export const DataLake: MessageFns<DataLake, "wings.v1.cluster_metadata.DataLake"> = {
+  $type: "wings.v1.cluster_metadata.DataLake" as const,
+
+  encode(message: DataLake, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    switch (message.dataLakeConfig?.$case) {
+      case "iceberg":
+        IcebergConfiguration.encode(message.dataLakeConfig.iceberg, writer.uint32(18).fork()).join();
+        break;
+      case "parquet":
+        ParquetConfiguration.encode(message.dataLakeConfig.parquet, writer.uint32(26).fork()).join();
+        break;
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataLake {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDataLake() as any;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.dataLakeConfig = { $case: "iceberg", iceberg: IcebergConfiguration.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.dataLakeConfig = { $case: "parquet", parquet: ParquetConfiguration.decode(reader, reader.uint32()) };
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DataLake {
+    return {
+      $type: DataLake.$type,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      dataLakeConfig: isSet(object.iceberg)
+        ? { $case: "iceberg", iceberg: IcebergConfiguration.fromJSON(object.iceberg) }
+        : isSet(object.parquet)
+        ? { $case: "parquet", parquet: ParquetConfiguration.fromJSON(object.parquet) }
+        : undefined,
+    };
+  },
+
+  toJSON(message: DataLake): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.dataLakeConfig?.$case === "iceberg") {
+      obj.iceberg = IcebergConfiguration.toJSON(message.dataLakeConfig.iceberg);
+    } else if (message.dataLakeConfig?.$case === "parquet") {
+      obj.parquet = ParquetConfiguration.toJSON(message.dataLakeConfig.parquet);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DataLake>, I>>(base?: I): DataLake {
+    return DataLake.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DataLake>, I>>(object: I): DataLake {
+    const message = createBaseDataLake() as any;
+    message.name = object.name ?? "";
+    switch (object.dataLakeConfig?.$case) {
+      case "iceberg": {
+        if (object.dataLakeConfig?.iceberg !== undefined && object.dataLakeConfig?.iceberg !== null) {
+          message.dataLakeConfig = {
+            $case: "iceberg",
+            iceberg: IcebergConfiguration.fromPartial(object.dataLakeConfig.iceberg),
+          };
+        }
+        break;
+      }
+      case "parquet": {
+        if (object.dataLakeConfig?.parquet !== undefined && object.dataLakeConfig?.parquet !== null) {
+          message.dataLakeConfig = {
+            $case: "parquet",
+            parquet: ParquetConfiguration.fromPartial(object.dataLakeConfig.parquet),
+          };
+        }
+        break;
+      }
+    }
+    return message;
+  },
+};
+
+messageTypeRegistry.set(DataLake.$type, DataLake);
+
+function createBaseIcebergConfiguration(): IcebergConfiguration {
+  return { $type: "wings.v1.cluster_metadata.IcebergConfiguration" };
+}
+
+export const IcebergConfiguration: MessageFns<IcebergConfiguration, "wings.v1.cluster_metadata.IcebergConfiguration"> =
+  {
+    $type: "wings.v1.cluster_metadata.IcebergConfiguration" as const,
+
+    encode(_: IcebergConfiguration, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+      return writer;
+    },
+
+    decode(input: BinaryReader | Uint8Array, length?: number): IcebergConfiguration {
+      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+      let end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIcebergConfiguration() as any;
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    },
+
+    fromJSON(_: any): IcebergConfiguration {
+      return { $type: IcebergConfiguration.$type };
+    },
+
+    toJSON(_: IcebergConfiguration): unknown {
+      const obj: any = {};
+      return obj;
+    },
+
+    create<I extends Exact<DeepPartial<IcebergConfiguration>, I>>(base?: I): IcebergConfiguration {
+      return IcebergConfiguration.fromPartial(base ?? ({} as any));
+    },
+    fromPartial<I extends Exact<DeepPartial<IcebergConfiguration>, I>>(_: I): IcebergConfiguration {
+      const message = createBaseIcebergConfiguration() as any;
+      return message;
+    },
+  };
+
+messageTypeRegistry.set(IcebergConfiguration.$type, IcebergConfiguration);
+
+function createBaseParquetConfiguration(): ParquetConfiguration {
+  return { $type: "wings.v1.cluster_metadata.ParquetConfiguration" };
+}
+
+export const ParquetConfiguration: MessageFns<ParquetConfiguration, "wings.v1.cluster_metadata.ParquetConfiguration"> =
+  {
+    $type: "wings.v1.cluster_metadata.ParquetConfiguration" as const,
+
+    encode(_: ParquetConfiguration, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+      return writer;
+    },
+
+    decode(input: BinaryReader | Uint8Array, length?: number): ParquetConfiguration {
+      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+      let end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseParquetConfiguration() as any;
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    },
+
+    fromJSON(_: any): ParquetConfiguration {
+      return { $type: ParquetConfiguration.$type };
+    },
+
+    toJSON(_: ParquetConfiguration): unknown {
+      const obj: any = {};
+      return obj;
+    },
+
+    create<I extends Exact<DeepPartial<ParquetConfiguration>, I>>(base?: I): ParquetConfiguration {
+      return ParquetConfiguration.fromPartial(base ?? ({} as any));
+    },
+    fromPartial<I extends Exact<DeepPartial<ParquetConfiguration>, I>>(_: I): ParquetConfiguration {
+      const message = createBaseParquetConfiguration() as any;
+      return message;
+    },
+  };
+
+messageTypeRegistry.set(ParquetConfiguration.$type, ParquetConfiguration);
 
 /** Cluster metadata service to manage cluster resources. */
 export type ClusterMetadataServiceDefinition = typeof ClusterMetadataServiceDefinition;
@@ -1877,6 +4008,78 @@ export const ClusterMetadataServiceDefinition = {
       responseStream: false,
       options: {},
     },
+    /** Create a new object store belonging to a tenant. */
+    createObjectStore: {
+      name: "CreateObjectStore",
+      requestType: CreateObjectStoreRequest,
+      requestStream: false,
+      responseType: ObjectStore,
+      responseStream: false,
+      options: {},
+    },
+    /** Return the specified object store. */
+    getObjectStore: {
+      name: "GetObjectStore",
+      requestType: GetObjectStoreRequest,
+      requestStream: false,
+      responseType: ObjectStore,
+      responseStream: false,
+      options: {},
+    },
+    /** List all object stores belonging to a tenant. */
+    listObjectStores: {
+      name: "ListObjectStores",
+      requestType: ListObjectStoresRequest,
+      requestStream: false,
+      responseType: ListObjectStoresResponse,
+      responseStream: false,
+      options: {},
+    },
+    /** Delete an object store. */
+    deleteObjectStore: {
+      name: "DeleteObjectStore",
+      requestType: DeleteObjectStoreRequest,
+      requestStream: false,
+      responseType: Empty,
+      responseStream: false,
+      options: {},
+    },
+    /** Create a new data lake belonging to a tenant. */
+    createDataLake: {
+      name: "CreateDataLake",
+      requestType: CreateDataLakeRequest,
+      requestStream: false,
+      responseType: DataLake,
+      responseStream: false,
+      options: {},
+    },
+    /** Return the specified data lake. */
+    getDataLake: {
+      name: "GetDataLake",
+      requestType: GetDataLakeRequest,
+      requestStream: false,
+      responseType: DataLake,
+      responseStream: false,
+      options: {},
+    },
+    /** List all data lakes belonging to a tenant. */
+    listDataLakes: {
+      name: "ListDataLakes",
+      requestType: ListDataLakesRequest,
+      requestStream: false,
+      responseType: ListDataLakesResponse,
+      responseStream: false,
+      options: {},
+    },
+    /** Delete a data lake. */
+    deleteDataLake: {
+      name: "DeleteDataLake",
+      requestType: DeleteDataLakeRequest,
+      requestStream: false,
+      responseType: Empty,
+      responseStream: false,
+      options: {},
+    },
   },
 } as const;
 
@@ -1925,6 +4128,37 @@ export interface ClusterMetadataServiceImplementation<CallContextExt = {}> {
   ): Promise<DeepPartial<ListTopicsResponse>>;
   /** Delete a topic. */
   deleteTopic(request: DeleteTopicRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  /** Create a new object store belonging to a tenant. */
+  createObjectStore(
+    request: CreateObjectStoreRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<ObjectStore>>;
+  /** Return the specified object store. */
+  getObjectStore(
+    request: GetObjectStoreRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<ObjectStore>>;
+  /** List all object stores belonging to a tenant. */
+  listObjectStores(
+    request: ListObjectStoresRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<ListObjectStoresResponse>>;
+  /** Delete an object store. */
+  deleteObjectStore(
+    request: DeleteObjectStoreRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<Empty>>;
+  /** Create a new data lake belonging to a tenant. */
+  createDataLake(request: CreateDataLakeRequest, context: CallContext & CallContextExt): Promise<DeepPartial<DataLake>>;
+  /** Return the specified data lake. */
+  getDataLake(request: GetDataLakeRequest, context: CallContext & CallContextExt): Promise<DeepPartial<DataLake>>;
+  /** List all data lakes belonging to a tenant. */
+  listDataLakes(
+    request: ListDataLakesRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<ListDataLakesResponse>>;
+  /** Delete a data lake. */
+  deleteDataLake(request: DeleteDataLakeRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
 }
 
 export interface ClusterMetadataServiceClient<CallOptionsExt = {}> {
@@ -1972,6 +4206,40 @@ export interface ClusterMetadataServiceClient<CallOptionsExt = {}> {
   ): Promise<ListTopicsResponse>;
   /** Delete a topic. */
   deleteTopic(request: DeepPartial<DeleteTopicRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  /** Create a new object store belonging to a tenant. */
+  createObjectStore(
+    request: DeepPartial<CreateObjectStoreRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<ObjectStore>;
+  /** Return the specified object store. */
+  getObjectStore(
+    request: DeepPartial<GetObjectStoreRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<ObjectStore>;
+  /** List all object stores belonging to a tenant. */
+  listObjectStores(
+    request: DeepPartial<ListObjectStoresRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<ListObjectStoresResponse>;
+  /** Delete an object store. */
+  deleteObjectStore(
+    request: DeepPartial<DeleteObjectStoreRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<Empty>;
+  /** Create a new data lake belonging to a tenant. */
+  createDataLake(
+    request: DeepPartial<CreateDataLakeRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<DataLake>;
+  /** Return the specified data lake. */
+  getDataLake(request: DeepPartial<GetDataLakeRequest>, options?: CallOptions & CallOptionsExt): Promise<DataLake>;
+  /** List all data lakes belonging to a tenant. */
+  listDataLakes(
+    request: DeepPartial<ListDataLakesRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<ListDataLakesResponse>;
+  /** Delete a data lake. */
+  deleteDataLake(request: DeepPartial<DeleteDataLakeRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
 }
 
 function bytesFromBase64(b64: string): Uint8Array {

@@ -12,6 +12,11 @@ export async function createTestTopic(
     topic: {
       fields: encodeTopicSchema(testBatchSchema()),
       partitionKey: undefined,
+      compaction: {
+        freshnessSeconds: 1000n,
+        ttlSeconds: undefined,
+      },
+      description: "test topic",
     },
   });
 }

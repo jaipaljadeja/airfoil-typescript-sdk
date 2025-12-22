@@ -36,49 +36,40 @@ describe("PushClient", () => {
     const r2 = await b2;
     const r0 = await b0;
 
-    expect(r0).toMatchInlineSnapshot(`
-      {
-        "$type": "wings.v1.log_metadata.CommittedBatch",
-        "result": {
-          "$case": "accepted",
-          "accepted": {
-            "$type": "wings.v1.log_metadata.CommittedBatch.Accepted",
-            "endOffset": 3n,
-            "startOffset": 0n,
-            "timestamp": 2025-10-14T11:47:26.891Z,
-          },
+    expect(r0).toMatchObject({
+      $type: "wings.v1.log_metadata.CommittedBatch",
+      result: {
+        $case: "accepted",
+        accepted: {
+          $type: "wings.v1.log_metadata.CommittedBatch.Accepted",
+          endOffset: 3n,
+          startOffset: 0n,
         },
-      }
-    `);
+      },
+    });
 
-    expect(r1).toMatchInlineSnapshot(`
-      {
-        "$type": "wings.v1.log_metadata.CommittedBatch",
-        "result": {
-          "$case": "accepted",
-          "accepted": {
-            "$type": "wings.v1.log_metadata.CommittedBatch.Accepted",
-            "endOffset": 7n,
-            "startOffset": 4n,
-            "timestamp": 2025-10-14T11:47:26.891Z,
-          },
+    expect(r1).toMatchObject({
+      $type: "wings.v1.log_metadata.CommittedBatch",
+      result: {
+        $case: "accepted",
+        accepted: {
+          $type: "wings.v1.log_metadata.CommittedBatch.Accepted",
+          endOffset: 7n,
+          startOffset: 4n,
         },
-      }
-    `);
+      },
+    });
 
-    expect(r2).toMatchInlineSnapshot(`
-      {
-        "$type": "wings.v1.log_metadata.CommittedBatch",
-        "result": {
-          "$case": "accepted",
-          "accepted": {
-            "$type": "wings.v1.log_metadata.CommittedBatch.Accepted",
-            "endOffset": 11n,
-            "startOffset": 8n,
-            "timestamp": 2025-10-14T11:47:26.891Z,
-          },
+    expect(r2).toMatchObject({
+      $type: "wings.v1.log_metadata.CommittedBatch",
+      result: {
+        $case: "accepted",
+        accepted: {
+          $type: "wings.v1.log_metadata.CommittedBatch.Accepted",
+          endOffset: 11n,
+          startOffset: 8n,
         },
-      }
-    `);
+      },
+    });
   });
 });
