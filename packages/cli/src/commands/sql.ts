@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { ArrowFlightSqlClient } from "@airfoil/flight";
 import * as p from "@clack/prompts";
 import { Command } from "commander";
+import { printTable } from "console-table-printer";
 import { Metadata } from "nice-grpc-common";
 
 export const sqlCommand = new Command("sql")
@@ -92,10 +93,11 @@ async function executeSQL(
       if (data.length === 0) {
         p.log.warn("No results returned");
       } else {
-        const normalized = data.map((row) =>
-          Object.fromEntries(Object.entries(row)),
-        );
-        console.table(normalized);
+        printTable(data, {
+          defaultColumnOptions: {
+            alignment: "left",
+          },
+        });
       }
     }
     p.outro("✓ Done");

@@ -26,6 +26,7 @@
     "@airfoil/flight": "workspace:*",
     "@clack/prompts": "^0.11.0",
     "commander": "^14.0.2",
+    "console-table-printer": "^2.15.0",
     "nice-grpc-common": "^2.0.2"
   }
 }
