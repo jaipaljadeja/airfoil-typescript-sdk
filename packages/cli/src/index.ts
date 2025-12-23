@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
-import { devCommand } from "./commands/dev";
-import { sqlCommand } from "./commands/sql";
+import { clusterCommand } from "./commands/cluster/index.js";
+import { devCommand } from "./commands/dev.js";
+import { sqlCommand } from "./commands/sql.js";
 
 const program = new Command();
 
@@ -12,5 +13,6 @@ program
 
 program.addCommand(devCommand);
 program.addCommand(sqlCommand);
+program.addCommand(clusterCommand);
 
 program.parse();

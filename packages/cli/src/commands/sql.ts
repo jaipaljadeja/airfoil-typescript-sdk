@@ -4,12 +4,19 @@ import * as p from "@clack/prompts";
 import { Command } from "commander";
 import { printTable } from "console-table-printer";
 import { Metadata } from "nice-grpc-common";
+import { hostOption, portOption, type ServerOptions } from "../utils/options";
+
+type SqlCommandOptions = ServerOptions & {
+  file?: string;
+  namespace: string;
+  json?: boolean;
+};
 
 export const sqlCommand = new Command("sql")
   .description("Execute SQL queries using Arrow Flight SQL")
   .argument("[query]", "SQL query to execute")
-  .option("-h, --host <host>", "Server host", "localhost")
-  .option("-p, --port <port>", "Server port", "7777")
+  .addOption(hostOption)
+  .addOption(portOption)
   .option("-f, --file <file>", "Execute SQL from file")
   .option(
     "-n, --namespace <namespace>",
@@ -17,7 +24,7 @@ export const sqlCommand = new Command("sql")
     "tenants/default/namespaces/default",
   )
   .option("--json", "Output results as JSON")
-  .action(async (query, options) => {
+  .action(async (query: string | undefined, options: SqlCommandOptions) => {
     try {
       await executeSQL(query, options);
     } catch (error) {
@@ -28,13 +35,7 @@ export const sqlCommand = new Command("sql")
 
 async function executeSQL(
   query: string | undefined,
-  options: {
-    host: string;
-    port: string;
-    file?: string;
-    namespace: string;
-    json?: boolean;
-  },
+  options: SqlCommandOptions,
 ) {
   let sqlQuery = query;
 
