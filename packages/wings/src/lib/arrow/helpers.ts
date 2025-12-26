@@ -1,16 +1,9 @@
-import type z from "zod";
 import {
-  arrowConfigSchema,
   complexArrowTypes,
   type FieldConfig,
+  type FieldConfigMap,
   partitionKeyArrowTypes,
 } from "./schema";
-
-export function getConfigSchemaForType<T extends FieldConfig["dataType"]>(
-  dataType: T,
-) {
-  return arrowConfigSchema[dataType];
-}
 
 export function requiresArrowConfiguration(
   dataType: FieldConfig["dataType"],
@@ -26,14 +19,8 @@ export function canBePartitionKey(dataType: FieldConfig["dataType"]): boolean {
   );
 }
 
-type ArrowConfigInferred = {
-  [K in keyof typeof arrowConfigSchema]: (typeof arrowConfigSchema)[K] extends z.ZodType
-    ? z.infer<(typeof arrowConfigSchema)[K]>
-    : Record<string, never>;
-};
-
 type DefaultConfigValues = {
-  [K in FieldConfig["dataType"]]: ArrowConfigInferred[K];
+  [K in FieldConfig["dataType"]]: FieldConfigMap[K];
 };
 
 const defaultConfigValues: DefaultConfigValues = {
