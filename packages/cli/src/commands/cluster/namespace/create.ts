@@ -13,8 +13,8 @@ type CreateNamespaceOptions = ServerOptions & {
   namespaceId: string;
   flushSizeBytes: string;
   flushIntervalMillis: string;
-  objectStore?: string;
-  dataLake?: string;
+  objectStore: string;
+  dataLake: string;
 };
 
 export const createNamespaceCommand = new Command("create-namespace")
@@ -37,11 +37,11 @@ export const createNamespaceCommand = new Command("create-namespace")
     "Maximum interval at which the current segment is flushed (milliseconds)",
     "0",
   )
-  .option(
+  .requiredOption(
     "--object-store <name>",
     "Object store used by this namespace (format: tenants/{tenant}/object-stores/{object-store})",
   )
-  .option(
+  .requiredOption(
     "--data-lake <name>",
     "Data lake used by this namespace (format: tenants/{tenant}/data-lakes/{data-lake})",
   )
@@ -59,13 +59,10 @@ export const createNamespaceCommand = new Command("create-namespace")
       const namespace = await client.createNamespace({
         parent: options.parent,
         namespaceId: options.namespaceId,
-        namespace: {
-          name: `${options.parent}/namespaces/${options.namespaceId}`,
-          flushSizeBytes: BigInt(options.flushSizeBytes),
-          flushIntervalMillis: BigInt(options.flushIntervalMillis),
-          objectStore: options.objectStore,
-          dataLake: options.dataLake,
-        },
+        flushSizeBytes: BigInt(options.flushSizeBytes),
+        flushIntervalMillis: BigInt(options.flushIntervalMillis),
+        objectStore: options.objectStore,
+        dataLake: options.dataLake,
       });
 
       s.stop("Namespace created successfully");

@@ -45,16 +45,13 @@ export const createObjectStoreGoogleCommand = new Command("google")
       const result = await client.createObjectStore({
         parent: options.parent,
         objectStoreId: options.objectStoreId,
-        objectStore: {
-          name: `${options.parent}/object-stores/${options.objectStoreId}`,
-          objectStoreConfig: {
-            $case: "google",
-            google: {
-              bucketName: options.bucketName,
-              prefix: options.prefix,
-              serviceAccount: options.serviceAccount,
-              serviceAccountKey: options.serviceAccountKey,
-            },
+        objectStoreConfig: {
+          _tag: "google",
+          google: {
+            bucketName: options.bucketName,
+            prefix: options.prefix,
+            serviceAccount: options.serviceAccount,
+            serviceAccountKey: options.serviceAccountKey,
           },
         },
       });

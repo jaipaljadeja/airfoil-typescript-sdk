@@ -45,16 +45,13 @@ export const createObjectStoreAzureCommand = new Command("azure")
       const result = await client.createObjectStore({
         parent: options.parent,
         objectStoreId: options.objectStoreId,
-        objectStore: {
-          name: `${options.parent}/object-stores/${options.objectStoreId}`,
-          objectStoreConfig: {
-            $case: "azure",
-            azure: {
-              containerName: options.containerName,
-              prefix: options.prefix,
-              storageAccountName: options.storageAccountName,
-              storageAccountKey: options.storageAccountKey,
-            },
+        objectStoreConfig: {
+          _tag: "azure",
+          azure: {
+            containerName: options.containerName,
+            prefix: options.prefix,
+            storageAccountName: options.storageAccountName,
+            storageAccountKey: options.storageAccountKey,
           },
         },
       });

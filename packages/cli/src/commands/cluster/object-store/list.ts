@@ -45,7 +45,7 @@ export const listObjectStoresCommand = new Command("list-object-stores")
         printTable(
           response.objectStores.map((os) => ({
             name: os.name,
-            type: os.objectStoreConfig?.$case || "-",
+            type: os.objectStoreConfig._tag || "-",
           })),
         );
       }

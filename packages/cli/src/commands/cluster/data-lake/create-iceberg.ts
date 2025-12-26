@@ -34,12 +34,9 @@ export const createDataLakeIcebergCommand = new Command("iceberg")
       const result = await client.createDataLake({
         parent: options.parent,
         dataLakeId: options.dataLakeId,
-        dataLake: {
-          name: `${options.parent}/data-lakes/${options.dataLakeId}`,
-          dataLakeConfig: {
-            $case: "iceberg",
-            iceberg: {},
-          },
+        dataLakeConfig: {
+          _tag: "iceberg",
+          iceberg: {},
         },
       });
 

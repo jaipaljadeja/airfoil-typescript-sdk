@@ -31,9 +31,6 @@ export const createTenantCommand = new Command("create-tenant")
 
       const tenant = await client.createTenant({
         tenantId: options.tenantId,
-        tenant: {
-          name: `tenants/${options.tenantId}`,
-        },
       });
 
       s.stop("Tenant created successfully");

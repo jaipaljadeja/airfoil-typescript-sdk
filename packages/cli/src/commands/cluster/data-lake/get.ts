@@ -34,7 +34,7 @@ export const getDataLakeCommand = new Command("get-data-lake")
       s.stop("Data lake retrieved");
 
       printTable([
-        { name: dataLake.name, type: dataLake.dataLakeConfig?.$case || "-" },
+        { name: dataLake.name, type: dataLake.dataLakeConfig._tag || "-" },
       ]);
 
       p.outro("✓ Done");

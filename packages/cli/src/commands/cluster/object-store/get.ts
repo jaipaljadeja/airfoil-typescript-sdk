@@ -36,7 +36,7 @@ export const getObjectStoreCommand = new Command("get-object-store")
       printTable([
         {
           name: objectStore.name,
-          type: objectStore.objectStoreConfig?.$case || "-",
+          type: objectStore.objectStoreConfig._tag || "-",
         },
       ]);
 

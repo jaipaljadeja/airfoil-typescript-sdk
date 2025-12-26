@@ -34,12 +34,9 @@ export const createDataLakeParquetCommand = new Command("parquet")
       const result = await client.createDataLake({
         parent: options.parent,
         dataLakeId: options.dataLakeId,
-        dataLake: {
-          name: `${options.parent}/data-lakes/${options.dataLakeId}`,
-          dataLakeConfig: {
-            $case: "parquet",
-            parquet: {},
-          },
+        dataLakeConfig: {
+          _tag: "parquet",
+          parquet: {},
         },
       });
 

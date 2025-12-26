@@ -45,7 +45,7 @@ export const listDataLakesCommand = new Command("list-data-lakes")
         printTable(
           response.dataLakes.map((dl) => ({
             name: dl.name,
-            type: dl.dataLakeConfig?.$case || "-",
+            type: dl.dataLakeConfig._tag || "-",
           })),
         );
       }

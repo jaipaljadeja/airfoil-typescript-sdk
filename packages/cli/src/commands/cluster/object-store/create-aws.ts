@@ -47,17 +47,15 @@ export const createObjectStoreAwsCommand = new Command("aws")
       const result = await client.createObjectStore({
         parent: options.parent,
         objectStoreId: options.objectStoreId,
-        objectStore: {
-          name: `${options.parent}/object-stores/${options.objectStoreId}`,
-          objectStoreConfig: {
-            $case: "aws",
-            aws: {
-              bucketName: options.bucketName,
-              prefix: options.prefix,
-              accessKeyId: options.accessKeyId,
-              secretAccessKey: options.secretAccessKey,
-              region: options.region,
-            },
+
+        objectStoreConfig: {
+          _tag: "aws",
+          aws: {
+            bucketName: options.bucketName,
+            prefix: options.prefix,
+            accessKeyId: options.accessKeyId,
+            secretAccessKey: options.secretAccessKey,
+            region: options.region,
           },
         },
       });

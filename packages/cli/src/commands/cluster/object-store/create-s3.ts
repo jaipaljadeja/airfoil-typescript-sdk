@@ -54,18 +54,15 @@ export const createObjectStoreS3Command = new Command("s3")
       const result = await client.createObjectStore({
         parent: options.parent,
         objectStoreId: options.objectStoreId,
-        objectStore: {
-          name: `${options.parent}/object-stores/${options.objectStoreId}`,
-          objectStoreConfig: {
-            $case: "s3Compatible",
-            s3Compatible: {
-              bucketName: options.bucketName,
-              prefix: options.prefix,
-              accessKeyId: options.accessKeyId,
-              secretAccessKey: options.secretAccessKey,
-              region: options.region,
-              endpoint: options.endpoint,
-            },
+        objectStoreConfig: {
+          _tag: "s3Compatible",
+          s3Compatible: {
+            bucketName: options.bucketName,
+            prefix: options.prefix,
+            accessKeyId: options.accessKeyId,
+            secretAccessKey: options.secretAccessKey,
+            region: options.region,
+            endpoint: options.endpoint,
           },
         },
       });
