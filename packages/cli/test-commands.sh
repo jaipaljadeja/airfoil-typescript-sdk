@@ -137,9 +137,47 @@ bun run airfoil:dev cluster get-namespace --name tenants/test-tenant/namespaces/
 echo ""
 
 # ============================================
+# TOPIC COMMANDS
+# ============================================
+echo -e "${BLUE}=== 5. TOPIC COMMANDS ===${NC}"
+echo ""
+
+# Create topic with simple fields
+echo -e "${GREEN}Creating topic 'test-topic' with simple fields...${NC}"
+bun run airfoil:dev cluster create-topic \
+  --parent tenants/test-tenant/namespaces/test-namespace \
+  --topic-id test-topic \
+  --fields "id:Utf8" "count:Int32" "active:Bool" "score:Float64" "timestamp:TimestampMillisecond" \
+  --partition-key id \
+  --freshness-seconds 300
+echo ""
+
+# Create topic with nullable fields
+echo -e "${GREEN}Creating topic 'test-topic-nullable' with nullable fields...${NC}"
+bun run airfoil:dev cluster create-topic \
+  --parent tenants/test-tenant/namespaces/test-namespace \
+  --topic-id test-topic-nullable \
+  --fields "user_id:Utf8" "email:Utf8?" "age:Int32?" \
+  --partition-key user_id
+echo ""
+
+echo -e "${GREEN}Listing all topics in namespace...${NC}"
+bun run airfoil:dev cluster list-topics --parent tenants/test-tenant/namespaces/test-namespace
+echo ""
+
+echo -e "${GREEN}Getting topic 'test-topic'...${NC}"
+bun run airfoil:dev cluster get-topic --name tenants/test-tenant/namespaces/test-namespace/topics/test-topic
+echo ""
+
+# ============================================
 # CLEANUP (DELETE) COMMANDS
 # ============================================
-echo -e "${BLUE}=== 5. CLEANUP (Testing Delete Commands) ===${NC}"
+echo -e "${BLUE}=== 6. CLEANUP (Testing Delete Commands) ===${NC}"
+echo ""
+
+echo -e "${GREEN}Deleting topics...${NC}"
+bun run airfoil:dev cluster delete-topic --name tenants/test-tenant/namespaces/test-namespace/topics/test-topic --force
+bun run airfoil:dev cluster delete-topic --name tenants/test-tenant/namespaces/test-namespace/topics/test-topic-nullable --force
 echo ""
 
 echo -e "${GREEN}Deleting namespace (must be deleted before object stores and data lakes)...${NC}"
