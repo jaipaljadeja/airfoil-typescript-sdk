@@ -12,8 +12,6 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "noUnusedVariables": "off",
-        "noUnusedFunctionParameters": "off",
         "noUnusedImports": {
           "options": {},
           "level": "error",

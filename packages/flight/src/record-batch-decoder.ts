@@ -109,13 +109,17 @@ abstract class RecordBatchReaderImpl<T extends TypeMap = any>
     header: metadata.RecordBatch,
     body: Uint8Array,
   ): RecordBatch<T> {
+    // Ensure the body buffer is properly aligned for Apache Arrow
+    // Apache Arrow requires 8-byte aligned buffers for typed arrays
+    const alignedBody = this._ensureAlignedBuffer(body);
+
     let children: Data<any>[];
     if (header.compression != null) {
       const codec = compressionRegistry.get(header.compression.type);
       if (codec?.decode && typeof codec.decode === "function") {
         const { decommpressedBody, buffers } = this._decompressBuffers(
           header,
-          body,
+          alignedBody,
           codec,
         );
         children = this._loadCompressedVectors(
@@ -133,7 +137,7 @@ abstract class RecordBatchReaderImpl<T extends TypeMap = any>
         throw new Error("Record batch is compressed but codec not found");
       }
     } else {
-      children = this._loadVectors(header, body, this.schema.fields);
+      children = this._loadVectors(header, alignedBody, this.schema.fields);
     }
 
     const data = makeData({
@@ -142,6 +146,22 @@ abstract class RecordBatchReaderImpl<T extends TypeMap = any>
       children,
     });
     return new RecordBatch(this.schema, data);
+  }
+
+  /**
+   * Ensures that a buffer is properly aligned for Apache Arrow's requirements.
+   * Apache Arrow needs 8-byte aligned buffers for typed array views.
+   */
+  private _ensureAlignedBuffer(buffer: Uint8Array): Uint8Array {
+    // If the buffer's byteOffset is already properly aligned (multiple of 8), return as is
+    if (buffer.byteOffset % 8 === 0) {
+      return buffer;
+    }
+
+    // Otherwise, create a new properly aligned buffer
+    const alignedBuffer = new Uint8Array(buffer.length);
+    alignedBuffer.set(buffer);
+    return alignedBuffer;
   }
 
   protected _loadDictionaryBatch(

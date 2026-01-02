@@ -155,7 +155,7 @@ async function runWithDocker(options: { tag?: string; forcePull?: boolean }) {
     try {
       await Bun.$`docker pull ${image}`.quiet();
       s.stop("Docker image ready");
-    } catch (error) {
+    } catch {
       s.stop("Failed to pull image");
       p.cancel(
         "Could not download Docker image. Please check your internet connection and registry access.",
