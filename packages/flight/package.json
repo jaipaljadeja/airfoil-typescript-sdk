@@ -23,7 +23,7 @@
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "lint": "biome check .",
-    "lint:fix": "pnpm lint --write",
+    "lint:fix": "biome check . --write",
     "test": "vitest",
     "test:ci": "vitest run"
   },

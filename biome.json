@@ -54,7 +54,6 @@
       "!**/dist",
       "!**/CHANGELOG.md",
       "!**/package.json",
-      "!**/pnpm-lock.yaml",
       "!**/generated.js",
       "!**/generated.d.ts",
       "!**/src/proto",
