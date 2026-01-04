@@ -124,7 +124,6 @@ describe("FetchClient", () => {
 
     const wings = new WingsClient({
       host: wingsContainer.getGrpcHost(),
-      // host: "localhost:7777",
       namespace,
     });
 

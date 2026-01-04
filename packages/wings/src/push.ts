@@ -20,14 +20,24 @@ import { topicSchema } from "./topic";
 
 export class PushClient {
   private requestId: bigint;
-  private completed: Record<number, CommittedBatch>;
+  private pending: Map<
+    number,
+    {
+      resolve: (result: CommittedBatch) => void;
+      reject: (error: Error) => void;
+    }
+  >;
+  private responseLoopStarted: boolean;
+  private responseLoopError: Error | null;
 
   constructor(
     private channel: Channel<FlightData>,
     public response: AsyncIterator<PutResult>,
   ) {
     this.requestId = 1n;
-    this.completed = {};
+    this.pending = new Map();
+    this.responseLoopStarted = false;
+    this.responseLoopError = null;
   }
 
   static async create(topic: Topic, flightClient: ArrowFlightClient) {
@@ -68,39 +78,80 @@ export class PushClient {
       throw new Error(`Failed to create push client: invalid response id`);
     }
 
-    return new PushClient(channel, response);
+    const client = new PushClient(channel, response);
+    client.startResponseLoop();
+    return client;
+  }
+
+  /**
+   * starts a single loop that always reads responses from the gRPC stream
+   * and dispatches them to the respective waiting promises.
+   * This prevents the race condition that occurs when multiple concurrent
+   * waitForResponse calls try to read from the same iterator.
+   */
+  private startResponseLoop() {
+    if (this.responseLoopStarted) {
+      return;
+    }
+    this.responseLoopStarted = true;
+
+    (async () => {
+      try {
+        while (true) {
+          const putResult = await this.response.next();
+
+          if (putResult.done) {
+            for (const [requestId, { reject }] of this.pending.entries()) {
+              reject(
+                new Error(
+                  `Stream closed unexpectedly waiting for response: ${requestId}`,
+                ),
+              );
+            }
+            this.pending.clear();
+            break;
+          }
+
+          const response = IngestionResponseMetadata.decode(
+            putResult.value.appMetadata,
+          );
+
+          if (response.result === undefined) {
+            const error = new Error("Invalid push response");
+            for (const { reject } of this.pending.values()) {
+              reject(error);
+            }
+            this.pending.clear();
+            this.responseLoopError = error;
+            break;
+          }
+
+          const requestIdNum = Number(response.requestId);
+          const pending = this.pending.get(requestIdNum);
+          if (pending) {
+            pending.resolve(response.result);
+            this.pending.delete(requestIdNum);
+          }
+        }
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        for (const { reject } of this.pending.values()) {
+          reject(err);
+        }
+        this.pending.clear();
+        this.responseLoopError = err;
+      }
+    })();
   }
 
   private async waitForResponse(requestId: bigint): Promise<CommittedBatch> {
-    if (this.completed[Number(requestId)]) {
-      const result = this.completed[Number(requestId)];
-      delete this.completed[Number(requestId)];
-      return result;
+    if (this.responseLoopError) {
+      throw this.responseLoopError;
     }
 
-    while (true) {
-      const putResult = await this.response.next();
-
-      if (putResult.done) {
-        throw new Error(
-          `Stream closed unexpectedly waiting for response: ${requestId}`,
-        );
-      }
-
-      const response = IngestionResponseMetadata.decode(
-        putResult.value.appMetadata,
-      );
-
-      if (response.result === undefined) {
-        throw new Error(`invalid push response`);
-      }
-
-      if (response.requestId === requestId) {
-        return response.result;
-      }
-
-      this.completed[Number(response.requestId)] = response.result;
-    }
+    return new Promise<CommittedBatch>((resolve, reject) => {
+      this.pending.set(Number(requestId), { resolve, reject });
+    });
   }
 
   push({
@@ -138,6 +189,12 @@ export class PushClient {
    * close the connection.
    */
   close() {
+    const error = new Error("PushClient closed");
+    for (const { reject } of this.pending.values()) {
+      reject(error);
+    }
+    this.pending.clear();
+
     this.channel.close();
   }
 }
