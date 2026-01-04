@@ -23,7 +23,7 @@ export function getMessageSchema(message: Message): Schema | undefined {
 
 export function decodeFlightDataStream(
   stream: AsyncIterable<FlightData>,
-  { expectedSchema }: { expectedSchema: Schema },
+  { expectedSchema: _expectedSchema }: { expectedSchema: Schema },
 ) {
   // TODO: we want to validate the schema of the stream?
   return new RecordBatchStreamReaderFromFlightData(stream);

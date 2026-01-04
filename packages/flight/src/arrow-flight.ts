@@ -108,7 +108,7 @@ export class ArrowFlightClient {
     request: Ticket,
     options: { schema: Schema } & CallOptions,
   ): AsyncIterable<RecordBatch> {
-    const { schema: expectedSchema, ...callOptions } = options;
+    const { schema: expectedSchema } = options;
     return decodeFlightDataStream(this.client.doGet(request, options), {
       expectedSchema,
     });

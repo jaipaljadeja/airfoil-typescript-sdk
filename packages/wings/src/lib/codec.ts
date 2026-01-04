@@ -436,10 +436,10 @@ export const StringCodec: Codec<string, string> = {
 export type UndefinedCodec = CodecType<typeof UndefinedCodec>;
 
 export const UndefinedCodec: Codec<undefined, undefined> = {
-  encode(app) {
+  encode(_app) {
     return undefined;
   },
-  decode(proto) {
+  decode(_proto) {
     return undefined;
   },
 };
@@ -458,7 +458,7 @@ export const UndefinedCodec: Codec<undefined, undefined> = {
 
 type Literal = string | number | boolean | null | undefined;
 
-export type LiteralCodec<T extends Codec, L extends Literal> = T extends Codec<
+export type LiteralCodec<T extends Codec, _L extends Literal> = T extends Codec<
   infer TApp,
   infer TProto
 >
@@ -497,7 +497,7 @@ export const LiteralCodec = <const L extends Literal>(
 
 export type LiteralUnionCodec<
   T extends Codec,
-  L extends readonly Literal[],
+  _L extends readonly Literal[],
 > = T extends Codec<infer TApp, infer TProto> ? Codec<TApp, TProto> : never;
 
 export const LiteralUnionCodec = <const L extends readonly Literal[]>(
@@ -571,8 +571,8 @@ type VariantCodecProto<
 // Type helper for VariantCodec that preserves the input/output types
 export type VariantCodec<
   T extends Codec,
-  TTag extends TPropertyKey,
-  TDiscriminator extends TPropertyKey,
+  _TTag extends TPropertyKey,
+  _TDiscriminator extends TPropertyKey,
 > = T extends Codec<infer TApp, infer TProto> ? Codec<TApp, TProto> : never;
 
 export const VariantCodec = <
