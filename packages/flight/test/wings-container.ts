@@ -7,7 +7,7 @@ import {
 export class WingsContainer {
   private container: StartedTestContainer | null = null;
 
-  async start(): Promise<void> {
+  async start(): Promise<WingsContainer> {
     const container = new GenericContainer(
       "docker.useairfoil.com/airfoil/wings:latest",
     )
@@ -24,6 +24,7 @@ export class WingsContainer {
       .withStartupTimeout(30_000);
 
     this.container = await container.start();
+    return this;
   }
 
   async stop(): Promise<void> {

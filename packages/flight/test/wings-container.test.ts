@@ -30,8 +30,6 @@ describe("WingsContainer", () => {
 
     const grpcHost = wingsContainer.getGrpcHost();
     expect(grpcHost).toMatch(/localhost:\d+/);
-
-    console.log(`Wings gRPC running on: ${grpcHost}`);
   });
 
   it("should expose HTTP port with dynamic mapping", () => {
@@ -42,8 +40,6 @@ describe("WingsContainer", () => {
 
     const httpHost = wingsContainer.getHttpHost();
     expect(httpHost).toMatch(/localhost:\d+/);
-
-    console.log(`Wings HTTP running on: ${httpHost}`);
   });
 
   it("should be healthy and accessible", async () => {

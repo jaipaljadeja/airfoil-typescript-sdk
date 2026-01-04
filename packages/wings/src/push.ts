@@ -131,4 +131,13 @@ export class PushClient {
 
     return this.waitForResponse(requestId);
   }
+
+  /**
+   * Close the push client and clean up the gRPC stream.
+   * This should be called when you're done pushing data to properly
+   * close the connection.
+   */
+  close() {
+    this.channel.close();
+  }
 }

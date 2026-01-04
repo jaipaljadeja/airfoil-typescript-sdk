@@ -10,12 +10,10 @@ describe("ArrowFlightSqlClient", () => {
   beforeAll(async () => {
     wingsContainer = new WingsContainer();
     await wingsContainer.start();
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }, 60_000);
 
   afterAll(async () => {
     await wingsContainer.stop();
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   });
 
   it("get catalogs", async () => {

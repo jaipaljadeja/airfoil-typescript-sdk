@@ -1,6 +1,6 @@
 import { WingsContainer } from "@airfoil/flight/test";
 import { customAlphabet } from "nanoid";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   arrowTableToRowColumns,
   PV,
@@ -12,22 +12,25 @@ import { createTestTopic, makeTestBatch } from "./helpers";
 const makeTopicId = customAlphabet("abcdefghijklmnopqrstuvwxyz");
 
 describe("FetchClient", () => {
-  let wingsContainer: WingsContainer;
+  let wingsContainer: WingsContainer | null = null;
 
-  beforeEach(async () => {
-    wingsContainer = new WingsContainer();
-    await wingsContainer.start();
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  beforeAll(async () => {
+    wingsContainer = await new WingsContainer().start();
   }, 60_000);
 
-  afterEach(async () => {
-    await wingsContainer.stop();
-    // extra timeout to shut down because testcontainer sometimes clashes for the same port
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }, 60_000);
+  afterAll(async () => {
+    if (wingsContainer !== null) {
+      await wingsContainer.stop();
+      wingsContainer = null;
+    }
+  });
 
-  it("should work without partitionKey", { timeout: 30_000 }, async () => {
+  it("should work without partitionKey", async () => {
     const namespace = "tenants/default/namespaces/default";
+
+    if (!wingsContainer) {
+      throw new Error("Wings container not initialized");
+    }
 
     const wings = new WingsClient({
       host: wingsContainer.getGrpcHost(),
@@ -112,8 +115,12 @@ describe("FetchClient", () => {
     `);
   });
 
-  it("should work with partitionKey", { timeout: 30_000 }, async () => {
+  it("should work with partitionKey", async () => {
     const namespace = "tenants/default/namespaces/default";
+
+    if (!wingsContainer) {
+      throw new Error("Wings container not initialized");
+    }
 
     const wings = new WingsClient({
       host: wingsContainer.getGrpcHost(),
