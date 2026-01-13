@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import type * as proto from "../../proto/cluster_metadata";
 
 export const CreateTenantRequest = Schema.Struct({
   /** The tenant id. */
@@ -62,3 +63,73 @@ export const DeleteTenantRequest = Schema.Struct({
 });
 
 export type DeleteTenantRequest = typeof DeleteTenantRequest.Type;
+
+export const Codec = {
+  CreateTenantRequest: {
+    toProto: (value: CreateTenantRequest): proto.CreateTenantRequest => ({
+      $type: "wings.v1.cluster_metadata.CreateTenantRequest",
+      tenantId: value.tenantId,
+      tenant: {
+        $type: "wings.v1.cluster_metadata.Tenant",
+        name: `tenants/${value.tenantId}`,
+      },
+    }),
+    fromProto: (value: proto.CreateTenantRequest): CreateTenantRequest => ({
+      tenantId: value.tenantId,
+    }),
+  },
+
+  Tenant: {
+    toProto: (value: Tenant): proto.Tenant => ({
+      $type: "wings.v1.cluster_metadata.Tenant",
+      name: value.name,
+    }),
+    fromProto: (value: proto.Tenant): Tenant => ({
+      name: value.name,
+    }),
+  },
+
+  GetTenantRequest: {
+    toProto: (value: GetTenantRequest): proto.GetTenantRequest => ({
+      $type: "wings.v1.cluster_metadata.GetTenantRequest",
+      name: value.name,
+    }),
+    fromProto: (value: proto.GetTenantRequest): GetTenantRequest => ({
+      name: value.name,
+    }),
+  },
+
+  ListTenantsRequest: {
+    toProto: (value: ListTenantsRequest): proto.ListTenantsRequest => ({
+      $type: "wings.v1.cluster_metadata.ListTenantsRequest",
+      pageSize: value.pageSize,
+      pageToken: value.pageToken,
+    }),
+    fromProto: (value: proto.ListTenantsRequest): ListTenantsRequest => ({
+      pageSize: value.pageSize,
+      pageToken: value.pageToken,
+    }),
+  },
+
+  ListTenantsResponse: {
+    toProto: (value: ListTenantsResponse): proto.ListTenantsResponse => ({
+      $type: "wings.v1.cluster_metadata.ListTenantsResponse",
+      tenants: value.tenants.map(Codec.Tenant.toProto),
+      nextPageToken: value.nextPageToken,
+    }),
+    fromProto: (value: proto.ListTenantsResponse): ListTenantsResponse => ({
+      tenants: value.tenants.map(Codec.Tenant.fromProto),
+      nextPageToken: value.nextPageToken,
+    }),
+  },
+
+  DeleteTenantRequest: {
+    toProto: (value: DeleteTenantRequest): proto.DeleteTenantRequest => ({
+      $type: "wings.v1.cluster_metadata.DeleteTenantRequest",
+      name: value.name,
+    }),
+    fromProto: (value: proto.DeleteTenantRequest): DeleteTenantRequest => ({
+      name: value.name,
+    }),
+  },
+} as const;

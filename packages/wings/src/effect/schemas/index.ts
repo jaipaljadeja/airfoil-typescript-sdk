@@ -1,6 +1,5 @@
-export * from "./data-lake";
-export * from "./helpers";
-export * from "./namespace";
-export * from "./object-store";
-export * from "./tenant";
-export * from "./topic";
+export * as DataLake from "./data-lake";
+export * as Namespace from "./namespace";
+export * as ObjectStore from "./object-store";
+export * as Tenant from "./tenant";
+export * as Topic from "./topic";
