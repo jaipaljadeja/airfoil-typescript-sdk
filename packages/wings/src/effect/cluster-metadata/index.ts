@@ -8,6 +8,19 @@ export { layer, layerConfig, make } from "./layer";
 export { ClusterMetadata, type ClusterMetadataService } from "./service";
 
 /**
+ * Access the underlying gRPC client that works with protobuf types.
+ *
+ * Use this for advanced use cases when you need direct access to the protobuf
+ * client instead of the Effect Schema-based API. Note: for most use cases,
+ * the Effect Schema API (like `getTopic`, `createTopic`, etc.) is preferred.
+ *
+ * @returns Effect that provides access to the protobuf ClusterMetadataServiceClient
+ *
+ */
+export const getProtobufClient = () =>
+  Effect.map(ClusterMetadata, (service) => service.getProtobufClient());
+
+/**
  * Creates a new tenant.
  * @param req - The create tenant request
  * @param options - Optional gRPC call options
@@ -40,6 +53,12 @@ export const listTenants = Effect.serviceFunctionEffect(
   (service) => service.listTenants,
 );
 
+/**
+ * Deletes a tenant.
+ * @param req - The delete tenant request
+ * @param options - Optional gRPC call options
+ * @returns Effect that resolves when deletion is complete
+ */
 export const deleteTenant = Effect.serviceFunctionEffect(
   ClusterMetadata,
   (service) => service.deleteTenant,

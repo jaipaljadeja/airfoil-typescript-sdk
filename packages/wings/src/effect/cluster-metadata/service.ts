@@ -1,5 +1,6 @@
 import { Context, type Effect } from "effect";
 import type { CallOptions } from "nice-grpc";
+import type { ClusterMetadataServiceClient } from "../../proto/cluster_metadata";
 import type { ClusterMetadataError } from "../errors";
 import type * as WS from "../schema";
 
@@ -7,6 +8,30 @@ import type * as WS from "../schema";
  * ClusterMetadata Service Interface
  */
 export interface ClusterMetadataService {
+  /**
+   * Returns the underlying gRPC client that works with protobuf types.
+   *
+   * Use this for advanced use cases when you need direct access to the protobuf
+   * client instead of the Effect Schema-based API. This is useful when:
+   * - You need protobuf types directly
+   * - You're integrating with non-Effect code
+   * - You need access to advanced gRPC features
+   *
+   * @example
+   * ```typescript
+   * const program = Effect.gen(function* () {
+   *   const service = yield* ClusterMetadata;
+   *   const protobufClient = service.getProtobufClient();
+   *
+   *   // Use protobuf client to get protobuf Topic type
+   *   const topic = yield* Effect.tryPromise({
+   *     try: () => protobufClient.getTopic({ name: "..." }),
+   *     catch: (e) => new ClusterMetadataError({ message: String(e), cause: e })
+   *   });
+   * });
+   * ```
+   */
+  readonly getProtobufClient: () => ClusterMetadataServiceClient;
   /**
    * Creates a new tenant.
    * @param req - The create tenant request

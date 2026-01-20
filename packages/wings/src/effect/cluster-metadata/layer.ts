@@ -55,6 +55,8 @@ export const make = (config: ClusterMetadataParams) =>
         });
 
     const service: ClusterMetadataService = {
+      getProtobufClient: () => grpcClient,
+
       createTenant: makeGrpcCall(
         grpcClient.createTenant,
         Schemas.Tenant.Codec.CreateTenantRequest.toProto,
