@@ -1,5 +1,5 @@
 import { Schema as ArrowSchema } from "apache-arrow";
-import { Schema as EffectSchema } from "effect";
+import { Schema } from "effect";
 
 import {
   deserializeSchemaBytesToFieldConfigs,
@@ -9,126 +9,182 @@ import {
 } from "../../lib/arrow";
 import type * as proto from "../../proto/cluster_metadata";
 
-// Schema for FieldConfig - validates that it's a valid field configuration
-const FieldConfigSchema = EffectSchema.declare(
-  (input: unknown): input is FieldConfig => {
-    if (typeof input !== "object" || input === null) return false;
-    const obj = input as Record<string, unknown>;
-    return (
-      typeof obj.name === "string" &&
-      typeof obj.nullable === "boolean" &&
-      typeof obj.dataType === "string"
-    );
-  },
-  {
-    identifier: "FieldConfig",
-    description: "A valid Arrow field configuration",
-  },
-);
+//  ███████████  ███████████      ███████    ███████████    ███████
+// ░░███░░░░░███░░███░░░░░███   ███░░░░░███ ░█░░░███░░░█  ███░░░░░███
+//  ░███    ░███ ░███    ░███  ███     ░░███░   ░███  ░  ███     ░░███
+//  ░██████████  ░██████████  ░███      ░███    ░███    ░███      ░███
+//  ░███░░░░░░   ░███░░░░░███ ░███      ░███    ░███    ░███      ░███
+//  ░███         ░███    ░███ ░░███     ███     ░███    ░░███     ███
+//  █████        █████   █████ ░░░███████░      █████    ░░░███████░
+// ░░░░░        ░░░░░   ░░░░░    ░░░░░░░       ░░░░░       ░░░░░░░
 
-const ArrowSchemaSchema = EffectSchema.instanceOf(ArrowSchema, {
+const isFieldConfig = (input: unknown): input is FieldConfig => {
+  if (typeof input !== "object" || input === null) return false;
+  const obj = input as Record<string, unknown>;
+  return (
+    typeof obj.name === "string" &&
+    typeof obj.nullable === "boolean" &&
+    typeof obj.dataType === "string"
+  );
+};
+
+const GetTopicRequestProto = Schema.Struct({
+  $type: Schema.Literal("wings.v1.cluster_metadata.GetTopicRequest"),
+  name: Schema.String,
+});
+
+const ListTopicsRequestProto = Schema.Struct({
+  $type: Schema.Literal("wings.v1.cluster_metadata.ListTopicsRequest"),
+  parent: Schema.String,
+  pageSize: Schema.optional(Schema.Number),
+  pageToken: Schema.optional(Schema.String),
+});
+
+const DeleteTopicRequestProto = Schema.Struct({
+  $type: Schema.Literal("wings.v1.cluster_metadata.DeleteTopicRequest"),
+  name: Schema.String,
+  force: Schema.Boolean,
+});
+
+//    █████████   ███████████  ███████████
+//   ███░░░░░███ ░░███░░░░░███░░███░░░░░███
+//  ░███    ░███  ░███    ░███ ░███    ░███
+//  ░███████████  ░██████████  ░██████████
+//  ░███░░░░░███  ░███░░░░░░   ░███░░░░░░
+//  ░███    ░███  ░███         ░███
+//  █████   █████ █████        █████
+// ░░░░░   ░░░░░ ░░░░░        ░░░░░
+
+const FieldConfigSchema = Schema.declare(isFieldConfig, {
+  identifier: "FieldConfig",
+  description: "A valid Arrow field configuration",
+});
+
+const ArrowSchemaSchema = Schema.instanceOf(ArrowSchema, {
   identifier: "ArrowSchema",
   description: "An Apache Arrow Schema instance",
 });
 
-export const CompactionConfiguration = EffectSchema.Struct({
-  /** How often to compact the topic, in seconds. */
-  freshnessSeconds: EffectSchema.BigIntFromSelf,
-  /** How long to keep the topic data, in seconds. */
-  ttlSeconds: EffectSchema.optional(EffectSchema.BigIntFromSelf),
+export const CompactionConfiguration = Schema.Struct({
+  freshnessSeconds: Schema.BigIntFromSelf,
+  ttlSeconds: Schema.optional(Schema.BigIntFromSelf),
 });
 
 export type CompactionConfiguration = typeof CompactionConfiguration.Type;
 
-export const CreateTopicRequest = EffectSchema.Struct({
-  /**
-   * The namespace that owns the topic.
-   *
-   * Format: tenants/{tenant}/namespaces/{namespace}
-   */
-  parent: EffectSchema.String,
-  /** The topic id. */
-  topicId: EffectSchema.String,
-  /** The fields in the topic messages. */
-  fields: EffectSchema.Array(FieldConfigSchema),
-  /** The topic description. */
-  description: EffectSchema.optional(EffectSchema.String),
-  /** The index of the field that is used to partition the topic. */
-  partitionKey: EffectSchema.optional(EffectSchema.Number),
-  /** The topic compaction configuration. */
-  compaction: CompactionConfiguration,
-});
-
-export type CreateTopicRequest = typeof CreateTopicRequest.Type;
-
-export const GetTopicRequest = EffectSchema.Struct({
-  /**
-   * The topic name.
-   *
-   * Format: tenants/{tenant}/namespaces/{namespace}/topics/{topic}
-   */
-  name: EffectSchema.String,
-});
-
-export type GetTopicRequest = typeof GetTopicRequest.Type;
-
-export const ListTopicsRequest = EffectSchema.Struct({
-  /**
-   * The parent namespace.
-   *
-   * Format: tenants/{tenant}/namespaces/{namespace}
-   */
-  parent: EffectSchema.String,
-  /** The number of topics to return. */
-  pageSize: EffectSchema.optional(EffectSchema.Number),
-  /** The continuation token. */
-  pageToken: EffectSchema.optional(EffectSchema.String),
-});
-
-export type ListTopicsRequest = typeof ListTopicsRequest.Type;
-
-export const Topic = EffectSchema.Struct({
-  /**
-   * The topic name.
-   *
-   * Format: tenants/{tenant}/namespaces/{namespace}/topics/{topic}
-   */
-  name: EffectSchema.String,
-  /** The fields in the topic messages. */
-  fields: EffectSchema.Array(FieldConfigSchema),
-  /** The schema of the topic messages. */
+export const Topic = Schema.Struct({
+  name: Schema.String,
+  fields: Schema.Array(FieldConfigSchema),
   schema: ArrowSchemaSchema,
-  /** The topic description. */
-  description: EffectSchema.optional(EffectSchema.String),
-  /** The index of the field that is used to partition the topic. */
-  partitionKey: EffectSchema.optional(EffectSchema.Number),
-  /** The topic compaction configuration. */
+  description: Schema.optional(Schema.String),
+  partitionKey: Schema.optional(Schema.Number),
   compaction: CompactionConfiguration,
 });
 
 export type Topic = typeof Topic.Type;
 
-export const ListTopicsResponse = EffectSchema.Struct({
-  /** The topics. */
-  topics: EffectSchema.Array(Topic),
-  /** The continuation token. */
-  nextPageToken: EffectSchema.String,
+export const CreateTopicRequest = Schema.Struct({
+  parent: Schema.String,
+  topicId: Schema.String,
+  fields: Schema.Array(FieldConfigSchema),
+  description: Schema.optional(Schema.String),
+  partitionKey: Schema.optional(Schema.Number),
+  compaction: CompactionConfiguration,
+});
+
+export type CreateTopicRequest = typeof CreateTopicRequest.Type;
+
+const GetTopicRequestApp = Schema.Struct({
+  name: Schema.String,
+});
+
+const ListTopicsRequestApp = Schema.Struct({
+  parent: Schema.String,
+  pageSize: Schema.optional(Schema.Number),
+  pageToken: Schema.optional(Schema.String),
+});
+
+export const ListTopicsResponse = Schema.Struct({
+  topics: Schema.Array(Topic),
+  nextPageToken: Schema.String,
 });
 
 export type ListTopicsResponse = typeof ListTopicsResponse.Type;
 
-export const DeleteTopicRequest = EffectSchema.Struct({
-  /**
-   * The topic name.
-   *
-   * Format: tenants/{tenant}/namespaces/{namespace}/topics/{topic}
-   */
-  name: EffectSchema.String,
-  /** If set to true, also delete data associated with the topic. */
-  force: EffectSchema.Boolean,
+const DeleteTopicRequestApp = Schema.Struct({
+  name: Schema.String,
+  force: Schema.Boolean,
 });
 
+//  ███████████ ███████████     █████████   ██████   █████  █████████  ███████████    ███████    ███████████   ██████   ██████   █████████   ███████████ █████    ███████    ██████   █████
+// ░█░░░███░░░█░░███░░░░░███   ███░░░░░███ ░░██████ ░░███  ███░░░░░███░░███░░░░░░█  ███░░░░░███ ░░███░░░░░███ ░░██████ ██████   ███░░░░░███ ░█░░░███░░░█░░███   ███░░░░░███ ░░██████ ░░███
+// ░   ░███  ░  ░███    ░███  ░███    ░███  ░███░███ ░███ ░███    ░░░  ░███   █ ░  ███     ░░███ ░███    ░███  ░███░█████░███  ░███    ░███ ░   ░███  ░  ░███  ███     ░░███ ░███░███ ░███
+//     ░███     ░██████████   ░███████████  ░███░░███░███ ░░█████████  ░███████   ░███      ░███ ░██████████   ░███░░███ ░███  ░███████████     ░███     ░███ ░███      ░███ ░███░░███░███
+//     ░███     ░███░░░░░███  ░███░░░░░███  ░███ ░░██████  ░░░░░░░░███ ░███░░░█   ░███      ░███ ░███░░░░░███  ░███ ░░░  ░███  ░███░░░░░███     ░███     ░███ ░███      ░███ ░███ ░░██████
+//     ░███     ░███    ░███  ░███    ░███  ░███  ░░█████  ███    ░███ ░███  ░    ░░███     ███  ░███    ░███  ░███      ░███  ░███    ░███     ░███     ░███ ░░███     ███  ░███  ░░█████
+//     █████    █████   █████ █████   █████ █████  ░░█████░░█████████  █████       ░░░███████░   █████   █████ █████     █████ █████   █████    █████    █████ ░░░███████░   █████  ░░█████
+//    ░░░░░    ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░    ░░░░░  ░░░░░░░░░  ░░░░░          ░░░░░░░    ░░░░░   ░░░░░ ░░░░░     ░░░░░ ░░░░░   ░░░░░    ░░░░░    ░░░░░    ░░░░░░░    ░░░░░    ░░░░░
+
+export const GetTopicRequest = Schema.transform(
+  GetTopicRequestProto,
+  GetTopicRequestApp,
+  {
+    strict: true,
+    decode: (proto) => ({ name: proto.name }),
+    encode: (app) => ({
+      $type: "wings.v1.cluster_metadata.GetTopicRequest" as const,
+      name: app.name,
+    }),
+  },
+);
+
+export type GetTopicRequest = typeof GetTopicRequest.Type;
+
+export const ListTopicsRequest = Schema.transform(
+  ListTopicsRequestProto,
+  ListTopicsRequestApp,
+  {
+    strict: true,
+    decode: (proto) => ({
+      parent: proto.parent,
+      pageSize: proto.pageSize,
+      pageToken: proto.pageToken,
+    }),
+    encode: (app) => ({
+      $type: "wings.v1.cluster_metadata.ListTopicsRequest" as const,
+      parent: app.parent,
+      pageSize: app.pageSize,
+      pageToken: app.pageToken,
+    }),
+  },
+);
+
+export type ListTopicsRequest = typeof ListTopicsRequest.Type;
+
+export const DeleteTopicRequest = Schema.transform(
+  DeleteTopicRequestProto,
+  DeleteTopicRequestApp,
+  {
+    strict: true,
+    decode: (proto) => ({ name: proto.name, force: proto.force }),
+    encode: (app) => ({
+      $type: "wings.v1.cluster_metadata.DeleteTopicRequest" as const,
+      name: app.name,
+      force: app.force,
+    }),
+  },
+);
+
 export type DeleteTopicRequest = typeof DeleteTopicRequest.Type;
+
+//    █████████     ███████    ██████████   ██████████   █████████
+//   ███░░░░░███  ███░░░░░███ ░░███░░░░███ ░░███░░░░░█  ███░░░░░███
+//  ███     ░░░  ███     ░░███ ░███   ░░███ ░███  █ ░  ███     ░░░
+// ░███         ░███      ░███ ░███    ░███ ░██████   ░███
+// ░███         ░███      ░███ ░███    ░███ ░███░░█   ░███
+// ░░███     ███░░███     ███  ░███    ███  ░███ ░   █░░███     ███
+//  ░░█████████  ░░░███████░   ██████████   ██████████ ░░█████████
+//   ░░░░░░░░░     ░░░░░░░    ░░░░░░░░░░   ░░░░░░░░░░   ░░░░░░░░░
 
 export const Codec = {
   CompactionConfiguration: {
@@ -147,45 +203,6 @@ export const Codec = {
     }),
   },
 
-  CreateTopicRequest: {
-    toProto: (value: CreateTopicRequest): proto.CreateTopicRequest => {
-      const schemaBytes = serializeFieldsToSchemaBytes(value.fields);
-
-      return {
-        $type: "wings.v1.cluster_metadata.CreateTopicRequest",
-        parent: value.parent,
-        topicId: value.topicId,
-        topic: {
-          $type: "wings.v1.cluster_metadata.Topic",
-          name: `${value.parent}/topics/${value.topicId}`,
-          fields: schemaBytes,
-          description: value.description,
-          partitionKey: value.partitionKey,
-          compaction: Codec.CompactionConfiguration.toProto(value.compaction),
-        },
-      };
-    },
-    fromProto: (value: proto.CreateTopicRequest): CreateTopicRequest => {
-      if (value.topic === undefined) {
-        throw new Error("Topic metadata is undefined");
-      }
-
-      const fields = deserializeSchemaBytesToFieldConfigs(value.topic.fields);
-      const compaction = Codec.CompactionConfiguration.fromProto(
-        value.topic.compaction!,
-      );
-
-      return {
-        parent: value.parent,
-        topicId: value.topicId,
-        fields,
-        description: value.topic.description,
-        partitionKey: value.topic.partitionKey,
-        compaction,
-      };
-    },
-  },
-
   Topic: {
     toProto: (value: Topic): proto.Topic => ({
       $type: "wings.v1.cluster_metadata.Topic",
@@ -196,45 +213,62 @@ export const Codec = {
       compaction: Codec.CompactionConfiguration.toProto(value.compaction),
     }),
     fromProto: (value: proto.Topic): Topic => {
+      if (!value.compaction) {
+        throw new Error("Topic compaction is undefined");
+      }
       const fields = deserializeSchemaBytesToFieldConfigs(value.fields);
       const schema = deserializeSchemaBytesToSchema(value.fields);
-      const compaction = Codec.CompactionConfiguration.fromProto(
-        value.compaction!,
-      );
-
       return {
         name: value.name,
         fields,
         schema,
         description: value.description,
         partitionKey: value.partitionKey,
-        compaction,
+        compaction: Codec.CompactionConfiguration.fromProto(value.compaction),
+      };
+    },
+  },
+
+  CreateTopicRequest: {
+    toProto: (value: CreateTopicRequest): proto.CreateTopicRequest => ({
+      $type: "wings.v1.cluster_metadata.CreateTopicRequest",
+      parent: value.parent,
+      topicId: value.topicId,
+      topic: {
+        $type: "wings.v1.cluster_metadata.Topic",
+        name: `${value.parent}/topics/${value.topicId}`,
+        fields: serializeFieldsToSchemaBytes(value.fields),
+        description: value.description,
+        partitionKey: value.partitionKey,
+        compaction: Codec.CompactionConfiguration.toProto(value.compaction),
+      },
+    }),
+    fromProto: (value: proto.CreateTopicRequest): CreateTopicRequest => {
+      if (!value.topic?.compaction) {
+        throw new Error("Topic metadata is undefined");
+      }
+      const fields = deserializeSchemaBytesToFieldConfigs(value.topic.fields);
+      return {
+        parent: value.parent,
+        topicId: value.topicId,
+        fields,
+        description: value.topic.description,
+        partitionKey: value.topic.partitionKey,
+        compaction: Codec.CompactionConfiguration.fromProto(
+          value.topic.compaction,
+        ),
       };
     },
   },
 
   GetTopicRequest: {
-    toProto: (value: GetTopicRequest): proto.GetTopicRequest => ({
-      $type: "wings.v1.cluster_metadata.GetTopicRequest",
-      name: value.name,
-    }),
-    fromProto: (value: proto.GetTopicRequest): GetTopicRequest => ({
-      name: value.name,
-    }),
+    toProto: Schema.encodeSync(GetTopicRequest),
+    fromProto: Schema.decodeSync(GetTopicRequest),
   },
 
   ListTopicsRequest: {
-    toProto: (value: ListTopicsRequest): proto.ListTopicsRequest => ({
-      $type: "wings.v1.cluster_metadata.ListTopicsRequest",
-      parent: value.parent,
-      pageSize: value.pageSize,
-      pageToken: value.pageToken,
-    }),
-    fromProto: (value: proto.ListTopicsRequest): ListTopicsRequest => ({
-      parent: value.parent,
-      pageSize: value.pageSize,
-      pageToken: value.pageToken,
-    }),
+    toProto: Schema.encodeSync(ListTopicsRequest),
+    fromProto: Schema.decodeSync(ListTopicsRequest),
   },
 
   ListTopicsResponse: {
@@ -250,14 +284,7 @@ export const Codec = {
   },
 
   DeleteTopicRequest: {
-    toProto: (value: DeleteTopicRequest): proto.DeleteTopicRequest => ({
-      $type: "wings.v1.cluster_metadata.DeleteTopicRequest",
-      name: value.name,
-      force: value.force,
-    }),
-    fromProto: (value: proto.DeleteTopicRequest): DeleteTopicRequest => ({
-      name: value.name,
-      force: value.force,
-    }),
+    toProto: Schema.encodeSync(DeleteTopicRequest),
+    fromProto: Schema.decodeSync(DeleteTopicRequest),
   },
 } as const;
