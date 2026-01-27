@@ -1,36 +1,37 @@
+import { WingsClusterMetadata } from "@airfoil/wings/effect";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  forceOption,
-  hostOption,
-  portOption,
-  type ServerAndForceOptions,
-} from "../../../utils/options";
+import { Command, Options } from "@effect/cli";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { forceOption, hostOption, portOption } from "../../../utils/options.js";
 
-type DeleteNamespaceOptions = ServerAndForceOptions & {
-  name: string;
-};
-
-export const deleteNamespaceCommand = new Command("delete-namespace")
-  .description(
-    "Delete a namespace from the cluster (fails if namespace has any topics)",
-  )
-  .requiredOption(
-    "--name <name>",
+const nameOption = Options.text("name").pipe(
+  Options.withDescription(
     "Namespace name in format: tenants/{tenant}/namespaces/{namespace}",
-  )
-  .addOption(forceOption)
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: DeleteNamespaceOptions) => {
-    try {
+  ),
+);
+
+export const deleteNamespaceCommand = Command.make(
+  "delete-namespace",
+  {
+    name: nameOption,
+    force: forceOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ name, force, host, port }) =>
+    Effect.gen(function* () {
       p.intro("🗑️  Delete Namespace");
 
-      if (!options.force) {
-        const confirm = await p.confirm({
-          message: `Are you sure you want to delete namespace ${options.name}?`,
-          initialValue: false,
+      if (!force) {
+        const confirm = yield* Effect.tryPromise({
+          try: () =>
+            p.confirm({
+              message: `Are you sure you want to delete namespace ${name}?`,
+              initialValue: false,
+            }),
+          catch: () => new Error("Failed to confirm deletion"),
         });
 
         if (p.isCancel(confirm) || !confirm) {
@@ -39,21 +40,23 @@ export const deleteNamespaceCommand = new Command("delete-namespace")
         }
       }
 
-      const client = createClusterMetadataClient(options.host, options.port);
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Deleting namespace...");
 
-      await client.deleteNamespace({
-        name: options.name,
-      });
+      yield* WingsClusterMetadata.deleteNamespace({ name }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to delete namespace")),
+        ),
+      );
 
       s.stop("Namespace deleted successfully");
       p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to delete namespace",
-      );
-      process.exit(1);
-    }
-  });
+    }).pipe(Effect.catchAll(handleCliError("Failed to delete namespace"))),
+).pipe(
+  Command.withDescription(
+    "Delete a namespace from the cluster (fails if namespace has any topics)",
+  ),
+);

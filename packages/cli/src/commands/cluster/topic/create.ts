@@ -1,14 +1,13 @@
 import * as fs from "node:fs";
 import type { FieldConfig } from "@airfoil/wings";
+import { WingsClusterMetadata } from "@airfoil/wings/effect";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  hostOption,
-  portOption,
-  type ServerOptions,
-} from "../../../utils/options";
+import { Effect, Option } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { hostOption, portOption } from "../../../utils/options.js";
 
 // Supported simple types (no config required)
 const SUPPORTED_INLINE_TYPES = [
@@ -49,6 +48,50 @@ const SUPPORTED_INLINE_TYPES = [
 ] as const;
 
 type SupportedInlineType = (typeof SUPPORTED_INLINE_TYPES)[number];
+
+const parentOption = Options.text("parent").pipe(
+  Options.withDescription(
+    "Parent namespace in format: tenants/{tenant}/namespaces/{namespace}",
+  ),
+);
+
+const topicIdOption = Options.text("topic-id").pipe(
+  Options.withDescription("Unique identifier for the topic"),
+);
+
+const descriptionOption = Options.text("description").pipe(
+  Options.withDescription("Topic description"),
+  Options.optional,
+);
+
+const fieldsOption = Options.text("fields").pipe(
+  Options.withDescription(
+    'Field definitions in format "name:Type" or "name:Type?" for nullable',
+  ),
+  Options.repeated,
+);
+
+const schemaFileOption = Options.text("schema-file").pipe(
+  Options.withDescription(
+    "Path to JSON file containing FieldConfig[] (for complex types)",
+  ),
+  Options.optional,
+);
+
+const partitionKeyOption = Options.text("partition-key").pipe(
+  Options.withDescription("Name of the field used for partitioning"),
+  Options.optional,
+);
+
+const freshnessSecondsOption = Options.integer("freshness-seconds").pipe(
+  Options.withDescription("How often to compact the topic (seconds)"),
+  Options.withDefault(60),
+);
+
+const ttlSecondsOption = Options.integer("ttl-seconds").pipe(
+  Options.withDescription("How long to keep topic data (seconds)"),
+  Options.optional,
+);
 
 /**
  * Parse a field string in format "name:Type" or "name:Type?" (nullable)
@@ -125,148 +168,139 @@ function loadFieldsFromFile(filePath: string): FieldConfig[] {
   return parsed as FieldConfig[];
 }
 
-type CreateTopicOptions = ServerOptions & {
-  parent: string;
-  topicId: string;
-  description?: string;
-  fields?: string[];
-  schemaFile?: string;
-  partitionKey?: string;
-  freshnessSeconds: string;
-  ttlSeconds?: string;
-};
-
-export const createTopicCommand = new Command("create-topic")
-  .description("Create a new topic belonging to a namespace")
-  .requiredOption(
-    "--parent <parent>",
-    "Parent namespace in format: tenants/{tenant}/namespaces/{namespace}",
-  )
-  .requiredOption("--topic-id <id>", "Unique identifier for the topic")
-  .option("--description <description>", "Topic description")
-  .option(
-    "--fields <fields...>",
-    'Field definitions in format "name:Type" or "name:Type?" for nullable',
-  )
-  .option(
-    "--schema-file <path>",
-    "Path to JSON file containing FieldConfig[] (for complex types)",
-  )
-  .option("--partition-key <name>", "Name of the field used for partitioning")
-  .option(
-    "--freshness-seconds <seconds>",
-    "How often to compact the topic (seconds)",
-    "60",
-  )
-  .option("--ttl-seconds <seconds>", "How long to keep topic data (seconds)")
-  .addOption(hostOption)
-  .addOption(portOption)
-  .addHelpText(
-    "after",
-    `
-Supported Types for --fields:
-  Integers:    Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64
-  Floats:      Float16, Float32, Float64
-  Boolean:     Bool, Null
-  Strings:     Utf8, LargeUtf8, Binary, LargeBinary
-  Date:        DateDay, DateMillisecond
-  Time:        TimeSecond, TimeMillisecond, TimeMicrosecond, TimeNanosecond
-  Timestamp:   TimestampSecond, TimestampMillisecond, TimestampMicrosecond, TimestampNanosecond
-  Duration:    DurationSecond, DurationMillisecond, DurationMicrosecond, DurationNanosecond
-  Interval:    IntervalDayTime, IntervalYearMonth, IntervalMonthDayNano
-
-For complex types (List, Struct, Map, etc.), use --schema-file with a JSON file.
-`,
-  )
-  .action(async (options: CreateTopicOptions) => {
-    try {
+export const createTopicCommand = Command.make(
+  "create-topic",
+  {
+    parent: parentOption,
+    topicId: topicIdOption,
+    description: descriptionOption,
+    fields: fieldsOption,
+    schemaFile: schemaFileOption,
+    partitionKey: partitionKeyOption,
+    freshnessSeconds: freshnessSecondsOption,
+    ttlSeconds: ttlSecondsOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({
+    parent,
+    topicId,
+    description,
+    fields,
+    schemaFile,
+    partitionKey,
+    freshnessSeconds,
+    ttlSeconds,
+    host,
+    port,
+  }) =>
+    Effect.gen(function* () {
       p.intro("📋 Create Topic");
 
-      if (!options.fields && !options.schemaFile) {
-        throw new Error("Either --fields or --schema-file must be provided");
-      }
-      if (options.fields && options.schemaFile) {
-        throw new Error(
-          "Cannot use both --fields and --schema-file. Choose one.",
+      const schemaFilePath = Option.getOrUndefined(schemaFile);
+      const hasFields = fields.length > 0;
+
+      if (!hasFields && !schemaFilePath) {
+        return yield* Effect.fail(
+          new Error("Either --fields or --schema-file must be provided"),
         );
       }
 
-      let fields: FieldConfig[];
-      if (options.schemaFile) {
-        fields = loadFieldsFromFile(options.schemaFile);
-      } else {
-        fields = parseFieldsFromArgs(options.fields as string[]);
+      if (hasFields && schemaFilePath) {
+        return yield* Effect.fail(
+          new Error("Cannot use both --fields and --schema-file. Choose one."),
+        );
       }
 
-      if (fields.length === 0) {
-        throw new Error("At least one field is required");
+      const topicFields = yield* Effect.try({
+        try: () =>
+          schemaFilePath
+            ? loadFieldsFromFile(schemaFilePath)
+            : parseFieldsFromArgs(fields),
+        catch: (error) =>
+          error instanceof Error ? error : new Error("Failed to parse fields"),
+      });
+
+      if (topicFields.length === 0) {
+        return yield* Effect.fail(new Error("At least one field is required"));
       }
 
-      let partitionKey: number | undefined;
-      if (options.partitionKey) {
-        const index = fields.findIndex((f) => f.name === options.partitionKey);
+      const partitionKeyName = Option.getOrUndefined(partitionKey);
+      let partitionKeyIndex: number | undefined;
+      if (partitionKeyName) {
+        const index = topicFields.findIndex(
+          (field) => field.name === partitionKeyName,
+        );
         if (index === -1) {
-          throw new Error(
-            `Partition key field "${options.partitionKey}" not found in fields. Available fields: ${fields.map((f) => f.name).join(", ")}`,
+          return yield* Effect.fail(
+            new Error(
+              `Partition key field "${partitionKeyName}" not found in fields. Available fields: ${topicFields.map((field) => field.name).join(", ")}`,
+            ),
           );
         }
-        partitionKey = index;
+        partitionKeyIndex = index;
       }
 
-      const client = createClusterMetadataClient(options.host, options.port);
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Creating topic...");
 
-      const topic = await client.createTopic({
-        parent: options.parent,
-        topicId: options.topicId,
-        description: options.description,
-        fields,
-        partitionKey,
+      const topic = yield* WingsClusterMetadata.createTopic({
+        parent,
+        topicId,
+        description: Option.getOrUndefined(description),
+        fields: topicFields,
+        partitionKey: partitionKeyIndex,
         compaction: {
-          freshnessSeconds: BigInt(options.freshnessSeconds),
-          ttlSeconds: options.ttlSeconds
-            ? BigInt(options.ttlSeconds)
-            : undefined,
+          freshnessSeconds: BigInt(freshnessSeconds),
+          ttlSeconds: Option.getOrUndefined(
+            Option.map(ttlSeconds, (ttl) => BigInt(ttl)),
+          ),
         },
-      });
+      }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to create topic")),
+        ),
+      );
 
       s.stop("Topic created successfully");
 
-      printTable([
-        {
-          name: topic.name,
-          description: topic.description || "-",
-          partition_key:
-            topic.partitionKey !== undefined
-              ? fields[topic.partitionKey]?.name ||
-                topic.partitionKey.toString()
-              : "-",
-          freshness_seconds:
-            topic.compaction?.freshnessSeconds.toString() || "-",
-          ttl_seconds: topic.compaction?.ttlSeconds?.toString() || "-",
-          fields_count: topic.fields.length.toString(),
-        },
-      ]);
+      yield* Effect.sync(() => {
+        printTable([
+          {
+            name: topic.name,
+            description: topic.description || "-",
+            partition_key:
+              topic.partitionKey !== undefined
+                ? topicFields[topic.partitionKey]?.name ||
+                  topic.partitionKey.toString()
+                : "-",
+            freshness_seconds: topic.compaction.freshnessSeconds.toString(),
+            ttl_seconds: topic.compaction.ttlSeconds?.toString() || "-",
+            fields_count: topic.fields.length.toString(),
+          },
+        ]);
 
-      if (topic.fields.length > 0) {
-        console.log("\nFields:");
-        printTable(
-          topic.fields.map((field, idx) => ({
-            index: idx.toString(),
-            name: field.name,
-            type: field.dataType,
-            nullable: field.nullable ? "yes" : "no",
-          })),
-        );
-      }
+        if (topic.fields.length > 0) {
+          console.log("\nFields:");
+          printTable(
+            topic.fields.map(
+              (
+                field: { name: string; dataType: string; nullable: boolean },
+                index: number,
+              ) => ({
+                index: index.toString(),
+                name: field.name,
+                type: field.dataType,
+                nullable: field.nullable ? "yes" : "no",
+              }),
+            ),
+          );
+        }
 
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to create topic",
-      );
-      process.exit(1);
-    }
-  });
+        p.outro("✓ Done");
+      });
+    }).pipe(Effect.catchAll(handleCliError("Failed to create topic"))),
+).pipe(Command.withDescription("Create a new topic belonging to a namespace"));

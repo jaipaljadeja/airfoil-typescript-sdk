@@ -1,64 +1,72 @@
+import { WingsClusterMetadata } from "@airfoil/wings/effect";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
+import { Effect, Option } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
 import {
   hostOption,
   pageSizeOption,
   pageTokenOption,
   portOption,
-  type ServerAndPaginationOptions,
-} from "../../../utils/options";
+} from "../../../utils/options.js";
 
-type ListObjectStoresOptions = ServerAndPaginationOptions & {
-  parent: string;
-};
+const parentOption = Options.text("parent").pipe(
+  Options.withDescription("Parent tenant in format: tenants/{tenant}"),
+);
 
-export const listObjectStoresCommand = new Command("list-object-stores")
-  .description("List all object stores belonging to a tenant")
-  .requiredOption(
-    "--parent <parent>",
-    "Parent tenant in format: tenants/{tenant}",
-  )
-  .addOption(pageSizeOption)
-  .addOption(pageTokenOption)
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: ListObjectStoresOptions) => {
-    try {
-      const client = createClusterMetadataClient(options.host, options.port);
+export const listObjectStoresCommand = Command.make(
+  "list-object-stores",
+  {
+    parent: parentOption,
+    pageSize: pageSizeOption,
+    pageToken: pageTokenOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ parent, pageSize, pageToken, host, port }) =>
+    Effect.gen(function* () {
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Fetching object stores...");
 
-      const response = await client.listObjectStores({
-        parent: options.parent,
-        pageSize: Number.parseInt(options.pageSize, 10),
-        pageToken: options.pageToken,
-      });
+      const response = yield* WingsClusterMetadata.listObjectStores({
+        parent,
+        pageSize,
+        pageToken: Option.getOrUndefined(pageToken),
+      }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to list object stores")),
+        ),
+      );
 
       s.stop(`Found ${response.objectStores.length} object store(s)`);
 
-      if (response.objectStores.length === 0) {
-        p.log.warn("No object stores found");
-      } else {
-        printTable(
-          response.objectStores.map((os) => ({
-            name: os.name,
-            type: os.objectStoreConfig._tag || "-",
-          })),
-        );
-      }
+      yield* Effect.sync(() => {
+        if (response.objectStores.length === 0) {
+          p.log.warn("No object stores found");
+        } else {
+          printTable(
+            response.objectStores.map(
+              (objectStore: {
+                name: string;
+                objectStoreConfig: { _tag?: string | null };
+              }) => ({
+                name: objectStore.name,
+                type: objectStore.objectStoreConfig._tag || "-",
+              }),
+            ),
+          );
+        }
 
-      if (response.nextPageToken) {
-        p.log.info(`Next page token: ${response.nextPageToken}`);
-      }
+        if (response.nextPageToken) {
+          p.log.info(`Next page token: ${response.nextPageToken}`);
+        }
 
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to list object stores",
-      );
-      process.exit(1);
-    }
-  });
+        p.outro("✓ Done");
+      });
+    }).pipe(Effect.catchAll(handleCliError("Failed to list object stores"))),
+).pipe(Command.withDescription("List all object stores belonging to a tenant"));

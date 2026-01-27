@@ -1,43 +1,74 @@
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
+import { Effect } from "effect";
+import { handleCliError } from "../utils/effect.js";
 import { downloadWings, getWingsPath, verifyChecksum } from "../utils/wings.js";
 
-export const devCommand = new Command("dev")
-  .description(
-    "Download and run Wings dev server locally (Docker recommended for portability)",
-  )
-  .option("--docker", "Run Wings using Docker (recommended)")
-  .option(
-    "--version <version>",
+const dockerOption = Options.boolean("docker").pipe(
+  Options.withDescription("Run Wings using Docker (recommended)"),
+  Options.withDefault(false),
+);
+
+const versionOption = Options.text("version").pipe(
+  Options.withDescription(
     "Specify Wings version (e.g., v0.1.0-alpha.11 or 'latest')",
-    "latest",
-  )
-  .option("--tag <tag>", "Docker image tag (only with --docker)", "latest")
-  .option("--force-pull", "Force pull Docker image even if it exists locally")
-  .option("--stress", "Use Wings stress binary variant")
-  .option("-y, --yes", "Skip confirmation prompts")
-  .action(async (options) => {
-    try {
-      if (options.docker) {
-        await runWithDocker(options);
-      } else {
-        await runWithBinary(options);
-      }
-    } catch (error) {
-      p.cancel(error instanceof Error ? error.message : "Operation failed");
-      process.exit(1);
-    }
-  });
+  ),
+  Options.withDefault("latest"),
+);
+
+const tagOption = Options.text("tag").pipe(
+  Options.withDescription("Docker image tag (only with --docker)"),
+  Options.withDefault("latest"),
+);
+
+const forcePullOption = Options.boolean("force-pull").pipe(
+  Options.withDescription("Force pull Docker image even if it exists locally"),
+  Options.withDefault(false),
+);
+
+const stressOption = Options.boolean("stress").pipe(
+  Options.withDescription("Use Wings stress binary variant"),
+  Options.withDefault(false),
+);
+
+const yesOption = Options.boolean("yes").pipe(
+  Options.withAlias("y"),
+  Options.withDescription("Skip confirmation prompts"),
+  Options.withDefault(false),
+);
+
+export const devCommand = Command.make(
+  "dev",
+  {
+    docker: dockerOption,
+    version: versionOption,
+    tag: tagOption,
+    forcePull: forcePullOption,
+    stress: stressOption,
+    yes: yesOption,
+  },
+  (options) =>
+    Effect.tryPromise({
+      try: () =>
+        options.docker ? runWithDocker(options) : runWithBinary(options),
+      catch: (error) =>
+        error instanceof Error ? error : new Error("Operation failed"),
+    }).pipe(Effect.catchAll(handleCliError("Operation failed"))),
+).pipe(
+  Command.withDescription(
+    "Download and run Wings dev server locally (Docker recommended for portability)",
+  ),
+);
 
 async function runWithBinary(options: {
-  version?: string;
-  yes?: boolean;
-  stress?: boolean;
+  version: string;
+  yes: boolean;
+  stress: boolean;
 }) {
   p.intro("🪽 Airfoil Dev");
 
-  const version = options.version || "latest";
-  const isStress = options.stress || false;
+  const version = options.version;
+  const isStress = options.stress;
   const wingsPath = getWingsPath(version, isStress);
   const fileExists = await Bun.file(wingsPath).exists();
 
@@ -106,10 +137,10 @@ async function runWithBinary(options: {
   await proc.exited;
 }
 
-async function runWithDocker(options: { tag?: string; forcePull?: boolean }) {
+async function runWithDocker(options: { tag: string; forcePull: boolean }) {
   p.intro("🐳 Airfoil Dev (Docker)");
 
-  let tag = options.tag || "latest";
+  let tag = options.tag;
 
   // If tag is not "latest" and doesn't include architecture, append it
   // Format: 0.1.0-alpha.10-aarch64 or 0.1.0-alpha.10-x86_64

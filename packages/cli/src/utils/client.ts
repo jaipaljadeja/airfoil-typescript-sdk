@@ -1,7 +1,6 @@
-import { ClusterMetadataClient } from "@airfoil/wings";
+import { WingsClusterMetadata } from "@airfoil/wings/effect";
 
-export function createClusterMetadataClient(host: string, port: string) {
-  return new ClusterMetadataClient({
+export const makeClusterMetadataLayer = (host: string, port: number) =>
+  WingsClusterMetadata.layer({
     host: `${host}:${port}`,
   });
-}

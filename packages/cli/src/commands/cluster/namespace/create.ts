@@ -1,87 +1,107 @@
+import { WingsClusterMetadata } from "@airfoil/wings/effect";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  hostOption,
-  portOption,
-  type ServerOptions,
-} from "../../../utils/options";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { hostOption, portOption } from "../../../utils/options.js";
 
-type CreateNamespaceOptions = ServerOptions & {
-  parent: string;
-  namespaceId: string;
-  flushSizeBytes: string;
-  flushIntervalMillis: string;
-  objectStore: string;
-  dataLake: string;
-};
-
-export const createNamespaceCommand = new Command("create-namespace")
-  .description("Create a new namespace belonging to a tenant")
-  .requiredOption(
-    "--parent <parent>",
+const parentOption = Options.text("parent").pipe(
+  Options.withDescription(
     "Parent tenant in format: tenants/{tenant} (e.g., 'tenants/default')",
-  )
-  .requiredOption(
-    "--namespace-id <id>",
+  ),
+);
+
+const namespaceIdOption = Options.text("namespace-id").pipe(
+  Options.withDescription(
     "Unique identifier for the namespace (e.g., 'production')",
-  )
-  .option(
-    "--flush-size-bytes <bytes>",
+  ),
+);
+
+const flushSizeBytesOption = Options.integer("flush-size-bytes").pipe(
+  Options.withDescription(
     "Size at which the current segment is flushed to object storage",
-    "0",
-  )
-  .option(
-    "--flush-interval-millis <millis>",
+  ),
+  Options.withDefault(0),
+);
+
+const flushIntervalMillisOption = Options.integer("flush-interval-millis").pipe(
+  Options.withDescription(
     "Maximum interval at which the current segment is flushed (milliseconds)",
-    "0",
-  )
-  .requiredOption(
-    "--object-store <name>",
+  ),
+  Options.withDefault(0),
+);
+
+const objectStoreOption = Options.text("object-store").pipe(
+  Options.withDescription(
     "Object store used by this namespace (format: tenants/{tenant}/object-stores/{object-store})",
-  )
-  .requiredOption(
-    "--data-lake <name>",
+  ),
+);
+
+const dataLakeOption = Options.text("data-lake").pipe(
+  Options.withDescription(
     "Data lake used by this namespace (format: tenants/{tenant}/data-lakes/{data-lake})",
-  )
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: CreateNamespaceOptions) => {
-    try {
+  ),
+);
+
+export const createNamespaceCommand = Command.make(
+  "create-namespace",
+  {
+    parent: parentOption,
+    namespaceId: namespaceIdOption,
+    flushSizeBytes: flushSizeBytesOption,
+    flushIntervalMillis: flushIntervalMillisOption,
+    objectStore: objectStoreOption,
+    dataLake: dataLakeOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({
+    parent,
+    namespaceId,
+    flushSizeBytes,
+    flushIntervalMillis,
+    objectStore,
+    dataLake,
+    host,
+    port,
+  }) =>
+    Effect.gen(function* () {
       p.intro("📁 Create Namespace");
 
-      const client = createClusterMetadataClient(options.host, options.port);
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Creating namespace...");
 
-      const namespace = await client.createNamespace({
-        parent: options.parent,
-        namespaceId: options.namespaceId,
-        flushSizeBytes: BigInt(options.flushSizeBytes),
-        flushIntervalMillis: BigInt(options.flushIntervalMillis),
-        objectStore: options.objectStore,
-        dataLake: options.dataLake,
-      });
+      const namespace = yield* WingsClusterMetadata.createNamespace({
+        parent,
+        namespaceId,
+        flushSizeBytes: BigInt(flushSizeBytes),
+        flushIntervalMillis: BigInt(flushIntervalMillis),
+        objectStore,
+        dataLake,
+      }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to create namespace")),
+        ),
+      );
 
       s.stop("Namespace created successfully");
 
-      printTable([
-        {
-          name: namespace.name,
-          flush_size_bytes: namespace.flushSizeBytes.toString(),
-          flush_interval_millis: namespace.flushIntervalMillis.toString(),
-          object_store: namespace.objectStore || "-",
-          data_lake: namespace.dataLake || "-",
-        },
-      ]);
-
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to create namespace",
-      );
-      process.exit(1);
-    }
-  });
+      yield* Effect.sync(() => {
+        printTable([
+          {
+            name: namespace.name,
+            flush_size_bytes: namespace.flushSizeBytes.toString(),
+            flush_interval_millis: namespace.flushIntervalMillis.toString(),
+            object_store: namespace.objectStore || "-",
+            data_lake: namespace.dataLake || "-",
+          },
+        ]);
+        p.outro("✓ Done");
+      });
+    }).pipe(Effect.catchAll(handleCliError("Failed to create namespace"))),
+).pipe(Command.withDescription("Create a new namespace belonging to a tenant"));

@@ -1,52 +1,51 @@
+import { WingsClusterMetadata } from "@airfoil/wings/effect";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  hostOption,
-  portOption,
-  type ServerOptions,
-} from "../../../utils/options";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { hostOption, portOption } from "../../../utils/options.js";
 
-type GetTopicOptions = ServerOptions & {
-  name: string;
-};
-
-export const getTopicCommand = new Command("get-topic")
-  .description("Get details of a specific topic")
-  .requiredOption(
-    "--name <name>",
+const nameOption = Options.text("name").pipe(
+  Options.withDescription(
     "Topic name in format: tenants/{tenant}/namespaces/{namespace}/topics/{topic}",
-  )
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: GetTopicOptions) => {
-    try {
-      const client = createClusterMetadataClient(options.host, options.port);
+  ),
+);
+
+export const getTopicCommand = Command.make(
+  "get-topic",
+  {
+    name: nameOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ name, host, port }) =>
+    Effect.gen(function* () {
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Fetching topic...");
 
-      const topic = await client.getTopic({
-        name: options.name,
-      });
+      const topic = yield* WingsClusterMetadata.getTopic({ name }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() => Effect.sync(() => s.stop("Failed to get topic"))),
+      );
 
       s.stop("Topic retrieved");
 
-      printTable([
-        {
-          name: topic.name,
-          description: topic.description || "-",
-          partition_key: topic.partitionKey?.toString() || "-",
-          freshness_seconds:
-            topic.compaction?.freshnessSeconds.toString() || "-",
-          ttl_seconds: topic.compaction?.ttlSeconds?.toString() || "-",
-        },
-      ]);
+      yield* Effect.sync(() => {
+        printTable([
+          {
+            name: topic.name,
+            description: topic.description || "-",
+            partition_key: topic.partitionKey?.toString() || "-",
+            freshness_seconds: topic.compaction.freshnessSeconds.toString(),
+            ttl_seconds: topic.compaction.ttlSeconds?.toString() || "-",
+          },
+        ]);
 
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(error instanceof Error ? error.message : "Failed to get topic");
-      process.exit(1);
-    }
-  });
+        p.outro("✓ Done");
+      });
+    }).pipe(Effect.catchAll(handleCliError("Failed to get topic"))),
+).pipe(Command.withDescription("Get details of a specific topic"));

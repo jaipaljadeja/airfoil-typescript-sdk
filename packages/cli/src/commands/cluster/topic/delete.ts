@@ -1,36 +1,43 @@
+import { WingsClusterMetadata } from "@airfoil/wings/effect";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  forceOption,
-  hostOption,
-  portOption,
-  type ServerAndForceOptions,
-} from "../../../utils/options";
+import { Command, Options } from "@effect/cli";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { forceOption, hostOption, portOption } from "../../../utils/options.js";
 
-type DeleteTopicOptions = ServerAndForceOptions & {
-  name: string;
-  forceDelete: boolean;
-};
-
-export const deleteTopicCommand = new Command("delete-topic")
-  .description("Delete a topic from the cluster")
-  .requiredOption(
-    "--name <name>",
+const nameOption = Options.text("name").pipe(
+  Options.withDescription(
     "Topic name in format: tenants/{tenant}/namespaces/{namespace}/topics/{topic}",
-  )
-  .option("--force-delete", "Also delete data associated with the topic", false)
-  .addOption(forceOption)
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: DeleteTopicOptions) => {
-    try {
+  ),
+);
+
+const forceDeleteOption = Options.boolean("force-delete").pipe(
+  Options.withDescription("Also delete data associated with the topic"),
+  Options.withDefault(false),
+);
+
+export const deleteTopicCommand = Command.make(
+  "delete-topic",
+  {
+    name: nameOption,
+    forceDelete: forceDeleteOption,
+    force: forceOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ name, forceDelete, force, host, port }) =>
+    Effect.gen(function* () {
       p.intro("🗑️  Delete Topic");
 
-      if (!options.force) {
-        const confirm = await p.confirm({
-          message: `Are you sure you want to delete topic ${options.name}?${options.forceDelete ? " (including all data)" : ""}`,
-          initialValue: false,
+      if (!force) {
+        const confirm = yield* Effect.tryPromise({
+          try: () =>
+            p.confirm({
+              message: `Are you sure you want to delete topic ${name}?${forceDelete ? " (including all data)" : ""}`,
+              initialValue: false,
+            }),
+          catch: () => new Error("Failed to confirm deletion"),
         });
 
         if (p.isCancel(confirm) || !confirm) {
@@ -39,22 +46,22 @@ export const deleteTopicCommand = new Command("delete-topic")
         }
       }
 
-      const client = createClusterMetadataClient(options.host, options.port);
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Deleting topic...");
 
-      await client.deleteTopic({
-        name: options.name,
-        force: options.forceDelete,
-      });
+      yield* WingsClusterMetadata.deleteTopic({
+        name,
+        force: forceDelete,
+      }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to delete topic")),
+        ),
+      );
 
       s.stop("Topic deleted successfully");
       p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to delete topic",
-      );
-      process.exit(1);
-    }
-  });
+    }).pipe(Effect.catchAll(handleCliError("Failed to delete topic"))),
+).pipe(Command.withDescription("Delete a topic from the cluster"));

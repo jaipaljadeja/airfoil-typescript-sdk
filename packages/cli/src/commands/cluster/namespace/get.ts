@@ -1,53 +1,52 @@
+import { WingsClusterMetadata } from "@airfoil/wings/effect";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  hostOption,
-  portOption,
-  type ServerOptions,
-} from "../../../utils/options";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { hostOption, portOption } from "../../../utils/options.js";
 
-type GetNamespaceOptions = ServerOptions & {
-  name: string;
-};
-
-export const getNamespaceCommand = new Command("get-namespace")
-  .description("Get details of a specific namespace")
-  .requiredOption(
-    "--name <name>",
+const nameOption = Options.text("name").pipe(
+  Options.withDescription(
     "Namespace name in format: tenants/{tenant}/namespaces/{namespace}",
-  )
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: GetNamespaceOptions) => {
-    try {
-      const client = createClusterMetadataClient(options.host, options.port);
+  ),
+);
+
+export const getNamespaceCommand = Command.make(
+  "get-namespace",
+  {
+    name: nameOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ name, host, port }) =>
+    Effect.gen(function* () {
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Fetching namespace...");
 
-      const namespace = await client.getNamespace({
-        name: options.name,
-      });
+      const namespace = yield* WingsClusterMetadata.getNamespace({ name }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to get namespace")),
+        ),
+      );
 
       s.stop("Namespace retrieved");
 
-      printTable([
-        {
-          name: namespace.name,
-          flush_size_bytes: namespace.flushSizeBytes.toString(),
-          flush_interval_millis: namespace.flushIntervalMillis.toString(),
-          object_store: namespace.objectStore || "-",
-          data_lake: namespace.dataLake || "-",
-        },
-      ]);
-
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to get namespace",
-      );
-      process.exit(1);
-    }
-  });
+      yield* Effect.sync(() => {
+        printTable([
+          {
+            name: namespace.name,
+            flush_size_bytes: namespace.flushSizeBytes.toString(),
+            flush_interval_millis: namespace.flushIntervalMillis.toString(),
+            object_store: namespace.objectStore || "-",
+            data_lake: namespace.dataLake || "-",
+          },
+        ]);
+        p.outro("✓ Done");
+      });
+    }).pipe(Effect.catchAll(handleCliError("Failed to get namespace"))),
+).pipe(Command.withDescription("Get details of a specific namespace"));

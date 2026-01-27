@@ -1,4 +1,5 @@
-import { Command } from "commander";
+import { Command } from "@effect/cli";
+import { Effect } from "effect";
 import { createDataLakeCommand } from "./data-lake/create.js";
 import { deleteDataLakeCommand } from "./data-lake/delete.js";
 import { getDataLakeCommand } from "./data-lake/get.js";
@@ -20,25 +21,32 @@ import { deleteTopicCommand } from "./topic/delete.js";
 import { getTopicCommand } from "./topic/get.js";
 import { listTopicsCommand } from "./topic/list.js";
 
-export const clusterCommand = new Command("cluster")
-  .description("Interact with the cluster metadata server")
-  .addCommand(createTenantCommand)
-  .addCommand(listTenantsCommand)
-  .addCommand(getTenantCommand)
-  .addCommand(deleteTenantCommand)
-  .addCommand(createNamespaceCommand)
-  .addCommand(listNamespacesCommand)
-  .addCommand(getNamespaceCommand)
-  .addCommand(deleteNamespaceCommand)
-  .addCommand(createTopicCommand)
-  .addCommand(listTopicsCommand)
-  .addCommand(getTopicCommand)
-  .addCommand(deleteTopicCommand)
-  .addCommand(createObjectStoreCommand)
-  .addCommand(listObjectStoresCommand)
-  .addCommand(getObjectStoreCommand)
-  .addCommand(deleteObjectStoreCommand)
-  .addCommand(createDataLakeCommand)
-  .addCommand(listDataLakesCommand)
-  .addCommand(getDataLakeCommand)
-  .addCommand(deleteDataLakeCommand);
+export const clusterCommand = Command.make(
+  "cluster",
+  {},
+  () => Effect.void,
+).pipe(
+  Command.withDescription("Interact with the cluster metadata server"),
+  Command.withSubcommands([
+    createTenantCommand,
+    listTenantsCommand,
+    getTenantCommand,
+    deleteTenantCommand,
+    createNamespaceCommand,
+    listNamespacesCommand,
+    getNamespaceCommand,
+    deleteNamespaceCommand,
+    createTopicCommand,
+    listTopicsCommand,
+    getTopicCommand,
+    deleteTopicCommand,
+    createObjectStoreCommand,
+    listObjectStoresCommand,
+    getObjectStoreCommand,
+    deleteObjectStoreCommand,
+    createDataLakeCommand,
+    listDataLakesCommand,
+    getDataLakeCommand,
+    deleteDataLakeCommand,
+  ]),
+);
