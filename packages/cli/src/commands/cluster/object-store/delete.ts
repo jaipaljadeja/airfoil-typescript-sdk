@@ -1,34 +1,37 @@
+import { WingsClusterMetadata } from "@airfoil/wings";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  forceOption,
-  hostOption,
-  portOption,
-  type ServerAndForceOptions,
-} from "../../../utils/options";
+import { Command, Options } from "@effect/cli";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { forceOption, hostOption, portOption } from "../../../utils/options.js";
 
-type DeleteObjectStoreOptions = ServerAndForceOptions & {
-  name: string;
-};
-
-export const deleteObjectStoreCommand = new Command("delete-object-store")
-  .description("Delete an object store from the cluster")
-  .requiredOption(
-    "--name <name>",
+const nameOption = Options.text("name").pipe(
+  Options.withDescription(
     "Object store name in format: tenants/{tenant}/object-stores/{object-store}",
-  )
-  .addOption(forceOption)
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: DeleteObjectStoreOptions) => {
-    try {
+  ),
+);
+
+export const deleteObjectStoreCommand = Command.make(
+  "delete-object-store",
+  {
+    name: nameOption,
+    force: forceOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ name, force, host, port }) =>
+    Effect.gen(function* () {
       p.intro("🗑️  Delete Object Store");
 
-      if (!options.force) {
-        const confirm = await p.confirm({
-          message: `Are you sure you want to delete object store ${options.name}?`,
-          initialValue: false,
+      if (!force) {
+        const confirm = yield* Effect.tryPromise({
+          try: () =>
+            p.confirm({
+              message: `Are you sure you want to delete object store ${name}?`,
+              initialValue: false,
+            }),
+          catch: () => new Error("Failed to confirm deletion"),
         });
 
         if (p.isCancel(confirm) || !confirm) {
@@ -37,23 +40,19 @@ export const deleteObjectStoreCommand = new Command("delete-object-store")
         }
       }
 
-      const client = createClusterMetadataClient(options.host, options.port);
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Deleting object store...");
 
-      await client.deleteObjectStore({
-        name: options.name,
-      });
+      yield* WingsClusterMetadata.deleteObjectStore({ name }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to delete object store")),
+        ),
+      );
 
       s.stop("Object store deleted successfully");
       p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete object store",
-      );
-      process.exit(1);
-    }
-  });
+    }).pipe(Effect.catchAll(handleCliError("Failed to delete object store"))),
+).pipe(Command.withDescription("Delete an object store from the cluster"));

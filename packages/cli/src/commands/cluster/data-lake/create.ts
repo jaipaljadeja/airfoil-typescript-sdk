@@ -1,8 +1,16 @@
-import { Command } from "commander";
+import { Command } from "@effect/cli";
+import { Effect } from "effect";
 import { createDataLakeIcebergCommand } from "./create-iceberg.js";
 import { createDataLakeParquetCommand } from "./create-parquet.js";
 
-export const createDataLakeCommand = new Command("create-data-lake")
-  .description("Create a new data lake")
-  .addCommand(createDataLakeIcebergCommand)
-  .addCommand(createDataLakeParquetCommand);
+export const createDataLakeCommand = Command.make(
+  "create-data-lake",
+  {},
+  () => Effect.void,
+).pipe(
+  Command.withDescription("Create a new data lake"),
+  Command.withSubcommands([
+    createDataLakeIcebergCommand,
+    createDataLakeParquetCommand,
+  ]),
+);

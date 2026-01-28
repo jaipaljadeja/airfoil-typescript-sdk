@@ -21,7 +21,7 @@ export class WingsContainer {
       .withWaitStrategy(
         Wait.forLogMessage(/gRPC server listening on 0\.0\.0\.0:7777/),
       )
-      .withStartupTimeout(30_000);
+      .withStartupTimeout(60_000);
 
     this.container = await container.start();
     return this;

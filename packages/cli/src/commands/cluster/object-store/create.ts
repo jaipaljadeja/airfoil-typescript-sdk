@@ -1,12 +1,20 @@
-import { Command } from "commander";
+import { Command } from "@effect/cli";
+import { Effect } from "effect";
 import { createObjectStoreAwsCommand } from "./create-aws.js";
 import { createObjectStoreAzureCommand } from "./create-azure.js";
 import { createObjectStoreGoogleCommand } from "./create-google.js";
 import { createObjectStoreS3Command } from "./create-s3.js";
 
-export const createObjectStoreCommand = new Command("create-object-store")
-  .description("Create a new object store")
-  .addCommand(createObjectStoreAwsCommand)
-  .addCommand(createObjectStoreAzureCommand)
-  .addCommand(createObjectStoreGoogleCommand)
-  .addCommand(createObjectStoreS3Command);
+export const createObjectStoreCommand = Command.make(
+  "create-object-store",
+  {},
+  () => Effect.void,
+).pipe(
+  Command.withDescription("Create a new object store"),
+  Command.withSubcommands([
+    createObjectStoreAwsCommand,
+    createObjectStoreAzureCommand,
+    createObjectStoreGoogleCommand,
+    createObjectStoreS3Command,
+  ]),
+);

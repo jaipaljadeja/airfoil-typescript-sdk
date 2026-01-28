@@ -1,47 +1,46 @@
+import { WingsClusterMetadata } from "@airfoil/wings";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  hostOption,
-  portOption,
-  type ServerOptions,
-} from "../../../utils/options";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { hostOption, portOption } from "../../../utils/options.js";
 
-type GetDataLakeOptions = ServerOptions & {
-  name: string;
-};
-
-export const getDataLakeCommand = new Command("get-data-lake")
-  .description("Get details of a specific data lake")
-  .requiredOption(
-    "--name <name>",
+const nameOption = Options.text("name").pipe(
+  Options.withDescription(
     "Data lake name in format: tenants/{tenant}/data-lakes/{data-lake}",
-  )
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: GetDataLakeOptions) => {
-    try {
-      const client = createClusterMetadataClient(options.host, options.port);
+  ),
+);
+
+export const getDataLakeCommand = Command.make(
+  "get-data-lake",
+  {
+    name: nameOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ name, host, port }) =>
+    Effect.gen(function* () {
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Fetching data lake...");
 
-      const dataLake = await client.getDataLake({
-        name: options.name,
-      });
+      const dataLake = yield* WingsClusterMetadata.getDataLake({ name }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to get data lake")),
+        ),
+      );
 
       s.stop("Data lake retrieved");
 
-      printTable([
-        { name: dataLake.name, type: dataLake.dataLakeConfig._tag || "-" },
-      ]);
-
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to get data lake",
-      );
-      process.exit(1);
-    }
-  });
+      yield* Effect.sync(() => {
+        printTable([
+          { name: dataLake.name, type: dataLake.dataLakeConfig._tag || "-" },
+        ]);
+        p.outro("✓ Done");
+      });
+    }).pipe(Effect.catchAll(handleCliError("Failed to get data lake"))),
+).pipe(Command.withDescription("Get details of a specific data lake"));

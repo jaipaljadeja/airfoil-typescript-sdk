@@ -1,79 +1,102 @@
+import { WingsClusterMetadata } from "@airfoil/wings";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  hostOption,
-  portOption,
-  type ServerOptions,
-} from "../../../utils/options";
+import { Effect, Option } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { hostOption, portOption } from "../../../utils/options.js";
 
-type CreateObjectStoreGoogleOptions = ServerOptions & {
-  parent: string;
-  objectStoreId: string;
-  bucketName: string;
-  prefix?: string;
-  serviceAccount: string;
-  serviceAccountKey: string;
-};
+const parentOption = Options.text("parent").pipe(
+  Options.withDescription("Parent tenant in format: tenants/{tenant}"),
+);
 
-export const createObjectStoreGoogleCommand = new Command("google")
-  .description("Create a new Google Cloud Storage object store")
-  .requiredOption(
-    "--parent <parent>",
-    "Parent tenant in format: tenants/{tenant}",
-  )
-  .requiredOption(
-    "--object-store-id <id>",
-    "Unique identifier for the object store",
-  )
-  .requiredOption("--bucket-name <bucket>", "Google Cloud Storage bucket name")
-  .option("--prefix <prefix>", "Bucket prefix (optional)")
-  .requiredOption("--service-account <account>", "GOOGLE_SERVICE_ACCOUNT")
-  .requiredOption("--service-account-key <key>", "GOOGLE_SERVICE_ACCOUNT_KEY")
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: CreateObjectStoreGoogleOptions) => {
-    try {
+const objectStoreIdOption = Options.text("object-store-id").pipe(
+  Options.withDescription("Unique identifier for the object store"),
+);
+
+const bucketNameOption = Options.text("bucket-name").pipe(
+  Options.withDescription("Google Cloud Storage bucket name"),
+);
+
+const prefixOption = Options.text("prefix").pipe(
+  Options.withDescription("Bucket prefix (optional)"),
+  Options.optional,
+);
+
+const serviceAccountOption = Options.text("service-account").pipe(
+  Options.withDescription("GOOGLE_SERVICE_ACCOUNT"),
+);
+
+const serviceAccountKeyOption = Options.text("service-account-key").pipe(
+  Options.withDescription("GOOGLE_SERVICE_ACCOUNT_KEY"),
+);
+
+export const createObjectStoreGoogleCommand = Command.make(
+  "google",
+  {
+    parent: parentOption,
+    objectStoreId: objectStoreIdOption,
+    bucketName: bucketNameOption,
+    prefix: prefixOption,
+    serviceAccount: serviceAccountOption,
+    serviceAccountKey: serviceAccountKeyOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({
+    parent,
+    objectStoreId,
+    bucketName,
+    prefix,
+    serviceAccount,
+    serviceAccountKey,
+    host,
+    port,
+  }) =>
+    Effect.gen(function* () {
       p.intro("🗄️  Create Google Cloud Storage Object Store");
 
-      const client = createClusterMetadataClient(options.host, options.port);
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Creating Google Cloud Storage object store...");
 
-      const result = await client.createObjectStore({
-        parent: options.parent,
-        objectStoreId: options.objectStoreId,
+      const result = yield* WingsClusterMetadata.createObjectStore({
+        parent,
+        objectStoreId,
         objectStoreConfig: {
           _tag: "google",
           google: {
-            bucketName: options.bucketName,
-            prefix: options.prefix,
-            serviceAccount: options.serviceAccount,
-            serviceAccountKey: options.serviceAccountKey,
+            bucketName,
+            prefix: Option.getOrUndefined(prefix),
+            serviceAccount,
+            serviceAccountKey,
           },
         },
-      });
+      }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to create Google object store")),
+        ),
+      );
 
       s.stop("Google Cloud Storage object store created successfully");
 
-      printTable([
-        {
-          name: result.name,
-          type: "Google Cloud",
-          bucket: options.bucketName,
-          service_account: options.serviceAccount,
-        },
-      ]);
-
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error
-          ? error.message
-          : "Failed to create Google object store",
-      );
-      process.exit(1);
-    }
-  });
+      yield* Effect.sync(() => {
+        printTable([
+          {
+            name: result.name,
+            type: "Google Cloud",
+            bucket: bucketName,
+            service_account: serviceAccount,
+          },
+        ]);
+        p.outro("✓ Done");
+      });
+    }).pipe(
+      Effect.catchAll(handleCliError("Failed to create Google object store")),
+    ),
+).pipe(
+  Command.withDescription("Create a new Google Cloud Storage object store"),
+);

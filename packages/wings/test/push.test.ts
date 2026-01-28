@@ -1,4 +1,4 @@
-import { WingsContainer } from "@airfoil/flight/test";
+import { WingsContainer } from "@useairfoil/flight/test";
 import { customAlphabet } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PV, WingsClient } from "../src";

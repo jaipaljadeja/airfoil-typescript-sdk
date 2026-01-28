@@ -1,36 +1,37 @@
+import { WingsClusterMetadata } from "@airfoil/wings";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  forceOption,
-  hostOption,
-  portOption,
-  type ServerAndForceOptions,
-} from "../../../utils/options";
+import { Command, Options } from "@effect/cli";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { forceOption, hostOption, portOption } from "../../../utils/options.js";
 
-type DeleteTenantOptions = ServerAndForceOptions & {
-  name: string;
-};
-
-export const deleteTenantCommand = new Command("delete-tenant")
-  .description(
-    "Delete a tenant from the cluster (fails if tenant has any namespaces)",
-  )
-  .requiredOption(
-    "--name <name>",
+const nameOption = Options.text("name").pipe(
+  Options.withDescription(
     "Tenant name in format: tenants/{tenant} (e.g., 'tenants/acme-corp')",
-  )
-  .addOption(forceOption)
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: DeleteTenantOptions) => {
-    try {
+  ),
+);
+
+export const deleteTenantCommand = Command.make(
+  "delete-tenant",
+  {
+    name: nameOption,
+    force: forceOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ name, force, host, port }) =>
+    Effect.gen(function* () {
       p.intro("🗑️  Delete Tenant");
 
-      if (!options.force) {
-        const confirm = await p.confirm({
-          message: `Are you sure you want to delete tenant ${options.name}?`,
-          initialValue: false,
+      if (!force) {
+        const confirm = yield* Effect.tryPromise({
+          try: () =>
+            p.confirm({
+              message: `Are you sure you want to delete tenant ${name}?`,
+              initialValue: false,
+            }),
+          catch: () => new Error("Failed to confirm deletion"),
         });
 
         if (p.isCancel(confirm) || !confirm) {
@@ -39,21 +40,23 @@ export const deleteTenantCommand = new Command("delete-tenant")
         }
       }
 
-      const client = createClusterMetadataClient(options.host, options.port);
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Deleting tenant...");
 
-      await client.deleteTenant({
-        name: options.name,
-      });
+      yield* WingsClusterMetadata.deleteTenant({ name }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to delete tenant")),
+        ),
+      );
 
       s.stop("Tenant deleted successfully");
       p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to delete tenant",
-      );
-      process.exit(1);
-    }
-  });
+    }).pipe(Effect.catchAll(handleCliError("Failed to delete tenant"))),
+).pipe(
+  Command.withDescription(
+    "Delete a tenant from the cluster (fails if tenant has any namespaces)",
+  ),
+);

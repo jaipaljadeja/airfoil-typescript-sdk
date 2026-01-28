@@ -1,18 +1,18 @@
 #!/usr/bin/env bun
-import { Command } from "commander";
+import { Command } from "@effect/cli";
+import { NodeContext, NodeRuntime } from "@effect/platform-node";
+import { Effect } from "effect";
 import { clusterCommand } from "./commands/cluster/index.js";
 import { devCommand } from "./commands/dev.js";
 import { sqlCommand } from "./commands/sql.js";
 
-const program = new Command();
+const program = Command.make("airfoil", {}, () => Effect.void).pipe(
+  Command.withSubcommands([devCommand, sqlCommand, clusterCommand]),
+);
 
-program
-  .name("airfoil")
-  .description("Airfoil CLI - Manage your Wings deployments")
-  .version("0.1.0");
+const cli = Command.run(program, {
+  name: "Airfoil CLI - Manage your Wings deployments",
+  version: "0.1.0",
+});
 
-program.addCommand(devCommand);
-program.addCommand(sqlCommand);
-program.addCommand(clusterCommand);
-
-program.parse();
+cli(process.argv).pipe(Effect.provide(NodeContext.layer), NodeRuntime.runMain);

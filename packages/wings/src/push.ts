@@ -6,7 +6,7 @@ import {
   FlightDescriptor,
   FlightDescriptor_DescriptorType,
   type PutResult,
-} from "@airfoil/flight";
+} from "@useairfoil/flight";
 import { type RecordBatch, Schema } from "apache-arrow";
 import { Channel } from "queueable";
 import type { PartitionValue } from "./partition-value";

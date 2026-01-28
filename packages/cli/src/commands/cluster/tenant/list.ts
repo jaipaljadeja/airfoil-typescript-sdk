@@ -1,52 +1,60 @@
+import { WingsClusterMetadata } from "@airfoil/wings";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
+import { Effect, Option } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
 import {
   hostOption,
   pageSizeOption,
   pageTokenOption,
   portOption,
-  type ServerAndPaginationOptions,
-} from "../../../utils/options";
+} from "../../../utils/options.js";
 
-export const listTenantsCommand = new Command("list-tenants")
-  .description("List all tenants in the cluster")
-  .addOption(pageSizeOption)
-  .addOption(pageTokenOption)
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: ServerAndPaginationOptions) => {
-    try {
-      const client = createClusterMetadataClient(options.host, options.port);
+export const listTenantsCommand = Command.make(
+  "list-tenants",
+  {
+    pageSize: pageSizeOption,
+    pageToken: pageTokenOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ pageSize, pageToken, host, port }) =>
+    Effect.gen(function* () {
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Fetching tenants...");
 
-      const response = await client.listTenants({
-        pageSize: Number.parseInt(options.pageSize, 10),
-        pageToken: options.pageToken,
-      });
+      const response = yield* WingsClusterMetadata.listTenants({
+        pageSize,
+        pageToken: Option.getOrUndefined(pageToken),
+      }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to list tenants")),
+        ),
+      );
 
       s.stop(`Found ${response.tenants.length} tenant(s)`);
 
-      if (response.tenants.length === 0) {
-        p.log.warn("No tenants found");
-      } else {
-        printTable(
-          response.tenants.map((t: { name: string }) => ({ name: t.name })),
-        );
-      }
+      yield* Effect.sync(() => {
+        if (response.tenants.length === 0) {
+          p.log.warn("No tenants found");
+        } else {
+          printTable(
+            response.tenants.map((tenant: { name: string }) => ({
+              name: tenant.name,
+            })),
+          );
+        }
 
-      if (response.nextPageToken) {
-        p.log.info(`Next page token: ${response.nextPageToken}`);
-      }
+        if (response.nextPageToken) {
+          p.log.info(`Next page token: ${response.nextPageToken}`);
+        }
 
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(
-        error instanceof Error ? error.message : "Failed to list tenants",
-      );
-      process.exit(1);
-    }
-  });
+        p.outro("✓ Done");
+      });
+    }).pipe(Effect.catchAll(handleCliError("Failed to list tenants"))),
+).pipe(Command.withDescription("List all tenants in the cluster"));

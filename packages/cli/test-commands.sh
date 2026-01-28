@@ -147,7 +147,11 @@ echo -e "${GREEN}Creating topic 'test-topic' with simple fields...${NC}"
 bun run airfoil:dev cluster create-topic \
   --parent tenants/test-tenant/namespaces/test-namespace \
   --topic-id test-topic \
-  --fields "id:Utf8" "count:Int32" "active:Bool" "score:Float64" "timestamp:TimestampMillisecond" \
+  --fields "id:Utf8" \
+  --fields "count:Int32" \
+  --fields "active:Bool" \
+  --fields "score:Float64" \
+  --fields "timestamp:TimestampMillisecond" \
   --partition-key id \
   --freshness-seconds 300
 echo ""
@@ -157,7 +161,9 @@ echo -e "${GREEN}Creating topic 'test-topic-nullable' with nullable fields...${N
 bun run airfoil:dev cluster create-topic \
   --parent tenants/test-tenant/namespaces/test-namespace \
   --topic-id test-topic-nullable \
-  --fields "user_id:Utf8" "email:Utf8?" "age:Int32?" \
+  --fields "user_id:Utf8" \
+  --fields "email:Utf8?" \
+  --fields "age:Int32?" \
   --partition-key user_id
 echo ""
 
@@ -201,4 +207,3 @@ bun run airfoil:dev cluster delete-tenant --name tenants/test-tenant --force
 echo ""
 
 echo -e "${BLUE}=== ALL TESTS COMPLETED SUCCESSFULLY ===${NC}"
-

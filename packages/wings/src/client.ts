@@ -3,7 +3,7 @@ import {
   type ClientOptions,
   createChannelFromConfig,
   type HostOrChannel,
-} from "@airfoil/flight";
+} from "@useairfoil/flight";
 import { type Channel, Metadata } from "nice-grpc";
 import { ClusterMetadataClient } from "./cluster-metadata";
 import { FetchClient } from "./fetch";

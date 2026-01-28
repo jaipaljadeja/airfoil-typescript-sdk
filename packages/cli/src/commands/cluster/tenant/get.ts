@@ -1,43 +1,44 @@
+import { WingsClusterMetadata } from "@airfoil/wings";
 import * as p from "@clack/prompts";
-import { Command } from "commander";
+import { Command, Options } from "@effect/cli";
 import { printTable } from "console-table-printer";
-import { createClusterMetadataClient } from "../../../utils/client";
-import {
-  hostOption,
-  portOption,
-  type ServerOptions,
-} from "../../../utils/options";
+import { Effect } from "effect";
+import { makeClusterMetadataLayer } from "../../../utils/client.js";
+import { handleCliError } from "../../../utils/effect.js";
+import { hostOption, portOption } from "../../../utils/options.js";
 
-type GetTenantOptions = ServerOptions & {
-  name: string;
-};
-
-export const getTenantCommand = new Command("get-tenant")
-  .description("Get details of a specific tenant")
-  .requiredOption(
-    "--name <name>",
+const nameOption = Options.text("name").pipe(
+  Options.withDescription(
     "Tenant name in format: tenants/{tenant} (e.g., 'tenants/acme-corp')",
-  )
-  .addOption(hostOption)
-  .addOption(portOption)
-  .action(async (options: GetTenantOptions) => {
-    try {
-      const client = createClusterMetadataClient(options.host, options.port);
+  ),
+);
+
+export const getTenantCommand = Command.make(
+  "get-tenant",
+  {
+    name: nameOption,
+    host: hostOption,
+    port: portOption,
+  },
+  ({ name, host, port }) =>
+    Effect.gen(function* () {
+      const layer = makeClusterMetadataLayer(host, port);
 
       const s = p.spinner();
       s.start("Fetching tenant...");
 
-      const tenant = await client.getTenant({
-        name: options.name,
-      });
+      const tenant = yield* WingsClusterMetadata.getTenant({ name }).pipe(
+        Effect.provide(layer),
+        Effect.tapError(() =>
+          Effect.sync(() => s.stop("Failed to get tenant")),
+        ),
+      );
 
       s.stop("Tenant retrieved");
 
-      printTable([{ name: tenant.name }]);
-
-      p.outro("✓ Done");
-    } catch (error) {
-      p.cancel(error instanceof Error ? error.message : "Failed to get tenant");
-      process.exit(1);
-    }
-  });
+      yield* Effect.sync(() => {
+        printTable([{ name: tenant.name }]);
+        p.outro("✓ Done");
+      });
+    }).pipe(Effect.catchAll(handleCliError("Failed to get tenant"))),
+).pipe(Command.withDescription("Get details of a specific tenant"));
