@@ -30,6 +30,12 @@ export const make = (config: ClusterMetadataParams) =>
       channel,
     );
 
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        channel.close();
+      }),
+    );
+
     const makeGrpcCall =
       <Req, ProtoReq, ProtoRes, Res>(
         grpcMethod: (req: ProtoReq, options?: CallOptions) => Promise<ProtoRes>,
@@ -196,7 +202,7 @@ export const make = (config: ClusterMetadataParams) =>
  * ```
  */
 export const layer = (config: ClusterMetadataParams) =>
-  Layer.effect(ClusterMetadata, make(config));
+  Layer.scoped(ClusterMetadata, make(config));
 
 /**
  * Creates a ClusterMetadata Layer using Effect's Config module.
@@ -218,7 +224,7 @@ export const layer = (config: ClusterMetadataParams) =>
 export const layerConfig = (
   config: Config.Config.Wrap<ClusterMetadataParams>,
 ) =>
-  Layer.effect(
+  Layer.scoped(
     ClusterMetadata,
     Config.unwrap(config).pipe(Effect.flatMap(make)),
   );
