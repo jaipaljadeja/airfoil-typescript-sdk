@@ -1,7 +1,0 @@
-{
-  "type": "minor",
-  "comment": "Switch SDK to Effect.ts",
-  "packageName": "@airfoil/cli",
-  "email": "francesco@ceccon.me",
-  "dependentChangeType": "patch"
-}

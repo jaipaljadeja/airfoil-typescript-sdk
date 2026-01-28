@@ -1,5 +1,5 @@
-import { WingsContainer } from "@airfoil/flight/test";
 import { expect, it as vitest } from "@effect/vitest";
+import { WingsContainer } from "@useairfoil/flight/test";
 import { Effect, Exit } from "effect";
 import { customAlphabet } from "nanoid";
 import { afterAll, beforeAll, describe, it } from "vitest";

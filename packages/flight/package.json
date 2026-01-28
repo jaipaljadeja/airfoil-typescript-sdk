@@ -1,6 +1,6 @@
 {
-  "name": "@airfoil/flight",
-  "version": "0.0.1",
+  "name": "@useairfoil/flight",
+  "version": "0.1.0",
   "type": "module",
   "files": [
     "dist",

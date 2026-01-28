@@ -1,4 +1,4 @@
-import { ArrowFlightClient, createChannelFromConfig } from "@airfoil/flight";
+import { ArrowFlightClient, createChannelFromConfig } from "@useairfoil/flight";
 import { Config, Effect, Layer, Scope } from "effect";
 import { Metadata } from "nice-grpc";
 import type { CallOptions } from "nice-grpc-common";

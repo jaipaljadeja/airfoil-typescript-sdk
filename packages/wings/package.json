@@ -1,6 +1,6 @@
 {
-  "name": "@airfoil/wings",
-  "version": "0.0.1",
+  "name": "@useairfoil/wings",
+  "version": "0.1.0",
   "type": "module",
   "files": [
     "dist",
@@ -37,7 +37,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@airfoil/flight": "workspace:*",
+    "@useairfoil/flight": "workspace:*",
     "@bufbuild/protobuf": "^2.9.0",
     "apache-arrow": "^21.1.0",
     "consola": "^3.4.2",

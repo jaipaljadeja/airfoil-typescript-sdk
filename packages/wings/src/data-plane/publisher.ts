@@ -5,7 +5,7 @@ import {
   FlightDataEncoder,
   FlightDescriptor,
   FlightDescriptor_DescriptorType,
-} from "@airfoil/flight";
+} from "@useairfoil/flight";
 import type { RecordBatch } from "apache-arrow";
 import { Schema } from "apache-arrow";
 import { Deferred, Effect, Fiber, Ref, type Scope } from "effect";

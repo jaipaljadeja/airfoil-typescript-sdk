@@ -1,4 +1,4 @@
-import type { FlightData } from "@airfoil/flight";
+import type { FlightData } from "@useairfoil/flight";
 import * as arrow from "apache-arrow";
 
 /**

@@ -1,4 +1,4 @@
-import type { ArrowFlightClient } from "@airfoil/flight";
+import type { ArrowFlightClient } from "@useairfoil/flight";
 import type { RecordBatch } from "apache-arrow";
 import { Context, Effect, type Stream } from "effect";
 import type { ClusterMetadataService } from "../cluster-metadata/service";

@@ -1,4 +1,4 @@
-import { Ticket } from "@airfoil/flight";
+import { Ticket } from "@useairfoil/flight";
 import { Any, type MessageFns } from "./proto/utils";
 
 export function createAny<T, V extends string, M extends MessageFns<T, V>>(

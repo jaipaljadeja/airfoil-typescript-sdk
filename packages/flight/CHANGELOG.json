@@ -1,0 +1,20 @@
+{
+  "name": "@useairfoil/flight",
+  "entries": [
+    {
+      "date": "Wed, 28 Jan 2026 15:18:35 GMT",
+      "version": "0.1.0",
+      "tag": "@useairfoil/flight_v0.1.0",
+      "comments": {
+        "minor": [
+          {
+            "author": "francesco@ceccon.me",
+            "package": "@useairfoil/flight",
+            "commit": "003fc255f696223e8e54fe7b9da4a8112411910f",
+            "comment": "Switch SDK to Effect.ts"
+          }
+        ]
+      }
+    }
+  ]
+}

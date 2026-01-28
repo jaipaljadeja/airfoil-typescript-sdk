@@ -12,17 +12,17 @@
       },
     },
     "packages/cli": {
-      "name": "@airfoil/cli",
-      "version": "0.1.0",
+      "name": "@useairfoil/cli",
+      "version": "0.0.0",
       "bin": {
         "airfoil": "./dist/index.js",
       },
       "dependencies": {
-        "@airfoil/flight": "workspace:*",
-        "@airfoil/wings": "workspace:*",
         "@clack/prompts": "^0.11.0",
         "@effect/cli": "^0.73.1",
         "@effect/platform-node": "^0.104.1",
+        "@useairfoil/flight": "workspace:*",
+        "@useairfoil/wings": "workspace:*",
         "console-table-printer": "^2.15.0",
         "effect": "^3.19.15",
         "nice-grpc": "^2.1.13",
@@ -36,8 +36,8 @@
       },
     },
     "packages/flight": {
-      "name": "@airfoil/flight",
-      "version": "0.0.1",
+      "name": "@useairfoil/flight",
+      "version": "0.0.0",
       "dependencies": {
         "@bufbuild/protobuf": "^2.9.0",
         "apache-arrow": "^21.1.0",
@@ -64,11 +64,11 @@
       },
     },
     "packages/wings": {
-      "name": "@airfoil/wings",
-      "version": "0.0.1",
+      "name": "@useairfoil/wings",
+      "version": "0.0.0",
       "dependencies": {
-        "@airfoil/flight": "workspace:*",
         "@bufbuild/protobuf": "^2.9.0",
+        "@useairfoil/flight": "workspace:*",
         "apache-arrow": "^21.1.0",
         "consola": "^3.4.2",
         "effect": "^3.19.15",
@@ -92,12 +92,6 @@
     },
   },
   "packages": {
-    "@airfoil/cli": ["@airfoil/cli@workspace:packages/cli"],
-
-    "@airfoil/flight": ["@airfoil/flight@workspace:packages/flight"],
-
-    "@airfoil/wings": ["@airfoil/wings@workspace:packages/wings"],
-
     "@babel/code-frame": ["@babel/code-frame@7.28.6", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.28.5", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-JYgintcMjRiCvS8mMECzaEn+m3PfoQiyqukOMCCVQtoJGYJw8j/8LBJEiqkHLkfwCcs74E3pbAUFNg7d9VNJ+Q=="],
 
     "@babel/generator": ["@babel/generator@7.28.5", "", { "dependencies": { "@babel/parser": "^7.28.5", "@babel/types": "^7.28.5", "@jridgewell/gen-mapping": "^0.3.12", "@jridgewell/trace-mapping": "^0.3.28", "jsesc": "^3.0.2" } }, "sha512-3EwLFhZ38J4VyIP6WNtt2kUdW9dokXA9Cr4IVIFHuCpZ3H8/YFOl5JjZHisrn1fATPBmKKqXzDFvh9fUwHz6CQ=="],
@@ -435,6 +429,12 @@
     "@types/ssh2": ["@types/ssh2@0.5.52", "", { "dependencies": { "@types/node": "*", "@types/ssh2-streams": "*" } }, "sha512-lbLLlXxdCZOSJMCInKH2+9V/77ET2J6NPQHpFI0kda61Dd1KglJs+fPQBchizmzYSOJBgdTajhPqBO1xxLywvg=="],
 
     "@types/ssh2-streams": ["@types/ssh2-streams@0.1.13", "", { "dependencies": { "@types/node": "*" } }, "sha512-faHyY3brO9oLEA0QlcO8N2wT7R0+1sHWZvQ+y3rMLwdY1ZyS1z0W3t65j9PqT4HmQ6ALzNe7RZlNuCNE0wBSWA=="],
+
+    "@useairfoil/cli": ["@useairfoil/cli@workspace:packages/cli"],
+
+    "@useairfoil/flight": ["@useairfoil/flight@workspace:packages/flight"],
+
+    "@useairfoil/wings": ["@useairfoil/wings@workspace:packages/wings"],
 
     "@vitest/expect": ["@vitest/expect@3.2.4", "", { "dependencies": { "@types/chai": "^5.2.2", "@vitest/spy": "3.2.4", "@vitest/utils": "3.2.4", "chai": "^5.2.0", "tinyrainbow": "^2.0.0" } }, "sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig=="],
 

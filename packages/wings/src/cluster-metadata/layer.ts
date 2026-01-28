@@ -1,4 +1,4 @@
-import { createChannelFromConfig } from "@airfoil/flight";
+import { createChannelFromConfig } from "@useairfoil/flight";
 import { Config, Effect, Layer } from "effect";
 import { type CallOptions, createClient } from "nice-grpc";
 import { ClusterMetadataError } from "../errors";
